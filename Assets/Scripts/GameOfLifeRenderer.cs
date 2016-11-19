@@ -4,17 +4,17 @@ using UnityEngine;
 
 namespace Assets.Scripts
 {
-    class GameOfLifeRenderer : MonoBehaviour
+    class GameOfLifeRenderer
     {
+        public GameObject gameObject;
+
+        public int XSize { get { return XEnd - XStart; } }
+        public int YSize { get { return YEnd - YStart; } }
+        public int ZSize { get { return ZEnd - ZStart; } }
+
         int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
-
-        GameOfLife gameOfLife;
-
         Mesh redMesh, whiteMesh, greenMesh, yellowMesh;
-
-        int XSize { get { return XEnd - XStart; } }
-        int YSize { get { return YEnd - YStart; } }
-        int ZSize { get { return ZEnd - ZStart; } }
+        GameOfLife gameOfLife;
 
 
         public GameOfLifeRenderer(
@@ -23,6 +23,8 @@ namespace Assets.Scripts
             Material redMaterial, Material whiteMaterial, Material greenMaterial, Material yellowMaterial)
         {
             this.gameOfLife = gameOfLife;
+            gameObject = new GameObject();
+            gameObject.transform.position = new Vector3(xStart, yStart, zStart);
 
             XStart = xStart;
             XEnd = xEnd;
@@ -31,14 +33,14 @@ namespace Assets.Scripts
             ZStart = zStart;
             ZEnd = zEnd;
 
-            var vertices = new Vector3[64000];
-            for (int x = 0; x < 40; x++)
+            var vertices = new Vector3[(XSize + 1) * (YSize + 1) * (ZSize + 1)];
+            for (int x = 0; x < XSize + 1; x++)
             {
-                for (int y = 0; y < 40; y++)
+                for (int y = 0; y < YSize + 1; y++)
                 {
-                    for (int z = 0; z < 40; z++)
+                    for (int z = 0; z < ZSize + 1; z++)
                     {
-                        vertices[x + 40 * y + 40 * 40 * z] = new Vector3(x, y, z);
+                        vertices[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector3(x, y, z);
                     }
                 }
             }
@@ -53,10 +55,10 @@ namespace Assets.Scripts
             greenGO.name = "Green";
             yellowGO.name = "Yellow";
 
-            redGO.transform.parent = transform;
-            whiteGO.transform.parent = transform;
-            greenGO.transform.parent = transform;
-            yellowGO.transform.parent = transform;
+            redGO.transform.SetParent(gameObject.transform, false);
+            whiteGO.transform.SetParent(gameObject.transform, false);
+            greenGO.transform.SetParent(gameObject.transform, false);
+            yellowGO.transform.SetParent(gameObject.transform, false);
 
             redGO.AddComponent<MeshRenderer>().material = redMaterial;
             whiteGO.AddComponent<MeshRenderer>().material = whiteMaterial;
@@ -90,20 +92,18 @@ namespace Assets.Scripts
         public void UpdateRedCubes()
         {
             int[] triangles = new int[36 * XSize * YSize * ZSize];
-            for (int x = XStart; x < XEnd; x++)
+            for (int x = 0; x < XSize; x++)
             {
-                for (int y = YStart; y < YEnd; y++)
+                for (int y = 0; y < YSize; y++)
                 {
-                    for (int z = ZStart; z < ZEnd; z++)
+                    for (int z = 0; z < ZSize; z++)
                     {
-                        if (gameOfLife.GetWorld(-2)[x, y, z] && gameOfLife.GetWorld(-1)[x, y, z] && !gameOfLife.GetWorld(0)[x, y, z])
+                        if (gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && !gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
                         {
                             for (int i = 0; i < Triangles.Length / 3; i++)
                             {
-                                triangles[i + Triangles.Length / 3 * (x + (x - XStart) * (y + (y - YStart) * z))] =
-                                    x + Triangles[3 * i] +
-                                    40 * (y + Triangles[3 * i + 1]) +
-                                    40 * 40 * (z + Triangles[3 * i + 2]);
+                                triangles[i + Triangles.Length / 3 * (x + XSize * (y + YSize * z))] =
+                                    x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
                             }
 
                         }
@@ -116,20 +116,18 @@ namespace Assets.Scripts
         public void UpdateWhiteCubes()
         {
             int[] triangles = new int[36 * XSize * YSize * ZSize];
-            for (int x = XStart; x < XEnd; x++)
+            for (int x = 0; x < XSize; x++)
             {
-                for (int y = YStart; y < YEnd; y++)
+                for (int y = 0; y < YSize; y++)
                 {
-                    for (int z = ZStart; z < ZEnd; z++)
+                    for (int z = 0; z < ZSize; z++)
                     {
-                        if (gameOfLife.GetWorld(-2)[x, y, z] && gameOfLife.GetWorld(-1)[x, y, z] && gameOfLife.GetWorld(0)[x, y, z])
+                        if (gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
                         {
                             for (int i = 0; i < Triangles.Length / 3; i++)
                             {
-                                triangles[i + Triangles.Length / 3 * (x + (x - XStart) * (y + (y - YStart) * z))] =
-                                    x + Triangles[3 * i] +
-                                    40 * (y + Triangles[3 * i + 1]) +
-                                    40 * 40 * (z + Triangles[3 * i + 2]);
+                                triangles[i + Triangles.Length / 3 * (x + XSize * (y + YSize * z))] =
+                                     x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
                             }
 
                         }
@@ -142,20 +140,18 @@ namespace Assets.Scripts
         public void UpdateGreenCubes()
         {
             int[] triangles = new int[36 * XSize * YSize * ZSize];
-            for (int x = XStart; x < XEnd; x++)
+            for (int x = 0; x < XSize; x++)
             {
-                for (int y = YStart; y < YEnd; y++)
+                for (int y = 0; y < YSize; y++)
                 {
-                    for (int z = ZStart; z < ZEnd; z++)
+                    for (int z = 0; z < ZSize; z++)
                     {
-                        if (!gameOfLife.GetWorld(-2)[x, y, z] && gameOfLife.GetWorld(-1)[x, y, z] && gameOfLife.GetWorld(0)[x, y, z])
+                        if (!gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
                         {
                             for (int i = 0; i < Triangles.Length / 3; i++)
                             {
-                                triangles[i + Triangles.Length / 3 * (x + (x - XStart) * (y + (y - YStart) * z))] =
-                                    x + Triangles[3 * i] +
-                                    40 * (y + Triangles[3 * i + 1]) +
-                                    40 * 40 * (z + Triangles[3 * i + 2]);
+                                triangles[i + Triangles.Length / 3 * (x + XSize * (y + YSize * z))] =
+                                     x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
                             }
 
                         }
@@ -168,20 +164,18 @@ namespace Assets.Scripts
         public void UpdateYellowCubes()
         {
             int[] triangles = new int[36 * XSize * YSize * ZSize];
-            for (int x = XStart; x < XEnd; x++)
+            for (int x = 0; x < XSize; x++)
             {
-                for (int y = YStart; y < YEnd; y++)
+                for (int y = 0; y < YSize; y++)
                 {
-                    for (int z = ZStart; z < ZEnd; z++)
+                    for (int z = 0; z < ZSize; z++)
                     {
-                        if (!gameOfLife.GetWorld(-2)[x, y, z] && gameOfLife.GetWorld(-1)[x, y, z] && !gameOfLife.GetWorld(0)[x, y, z])
+                        if (!gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && !gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
                         {
                             for (int i = 0; i < Triangles.Length / 3; i++)
                             {
-                                triangles[i + Triangles.Length / 3 * (x + (x - XStart) * (y + (y - YStart) * z))] =
-                                    x + Triangles[3 * i] +
-                                    40 * (y + Triangles[3 * i + 1]) +
-                                    40 * 40 * (z + Triangles[3 * i + 2]);
+                                triangles[i + Triangles.Length / 3 * (x + XSize * (y + YSize * z))] =
+                                     x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
                             }
 
                         }

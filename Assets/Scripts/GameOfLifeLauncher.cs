@@ -13,18 +13,18 @@ namespace Assets.Scripts
 
         void Start()
         {
-            var world = new bool[Size, Size, Size];
+            gameOfLife = new GameOfLife(Size, Size, Size, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
             for (int x = 0; x < Size; x++)
             {
                 for (int y = 0; y < Size; y++)
                 {
                     for (int z = 0; z < Size; z++)
                     {
-                        world[x, y, z] = Random.value > 0.6;
+                        gameOfLife.SetBlock(x, y, z, Random.value > 0.9);
                     }
                 }
             }
-            gameOfLife = new GameOfLife(Size, Size, Size, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
+            gameOfLife.ApplyBlocksChanges();
             gameOfLife.UpdateCubes();
         }
 
