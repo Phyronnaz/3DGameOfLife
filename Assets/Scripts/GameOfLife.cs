@@ -29,7 +29,6 @@ namespace Assets.Scripts
         bool cubesUpdateInProgress;
         bool nextInProgress;
         Stopwatch trianglesStopwatch;
-        Stopwatch meshesStopwatch;
         Stopwatch computationStopwatch;
 
         public int XSize { get { return worlds[0].GetLength(0); } }
@@ -100,7 +99,7 @@ namespace Assets.Scripts
                 {
                     nextInProgress = false;
                     currentWorldIndex++;
-                    UnityEngine.Debug.Log("Computation time: " + computationStopwatch.ElapsedMilliseconds.ToString() + "ms");
+                    Log.ComputationTime(computationStopwatch.ElapsedMilliseconds);
                     computationStopwatch.Stop();
                 }
                 Busy = nextInProgress;
@@ -123,13 +122,9 @@ namespace Assets.Scripts
                 if (ended)
                 {
                     cubesUpdateInProgress = false;
-                    UnityEngine.Debug.Log("Triangles Calcul time: " + trianglesStopwatch.ElapsedMilliseconds.ToString() + "ms");
+                    Log.TrianglesTime(trianglesStopwatch.ElapsedMilliseconds);
                     trianglesStopwatch.Stop();
-                    meshesStopwatch = new Stopwatch();
-                    meshesStopwatch.Start();
                     UpdateMeshes();
-                    UnityEngine.Debug.Log("Meshes Update time: " + meshesStopwatch.ElapsedMilliseconds.ToString() + "ms");
-                    meshesStopwatch.Stop();
                 }
                 Busy = cubesUpdateInProgress;
             }
@@ -242,31 +237,123 @@ namespace Assets.Scripts
             int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
             ManualResetEvent waitHandle)
         {
+            var xSize = currentWorld.GetLength(0);
+            var ySize = currentWorld.GetLength(1);
+            var zSize = currentWorld.GetLength(2);
             for (int x = xStart; x < xEnd; x++)
             {
                 for (int y = yStart; y < yEnd; y++)
                 {
                     for (int z = zStart; z < zEnd; z++)
                     {
-                        int neighbors = currentWorld[x, y, z] ? -1 : 0;
-                        for (int i = -1; i < 2; i++)
+                        int neighbors = 0;
+                        #region ifs
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y - 1, z - 1])
                         {
-                            for (int j = -1; j < 2; j++)
-                            {
-                                for (int k = -1; k < 2; k++)
-                                {
-                                    if (0 <= x + i && x + i < xEnd &&
-                                        0 <= y + j && y + j < yEnd &&
-                                        0 <= z + k && z + k < zEnd)
-                                    {
-                                        if (currentWorld[x + i, y + j, z + k])
-                                        {
-                                            neighbors++;
-                                        }
-                                    }
-                                }
-                            }
+                            neighbors++;
                         }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y - 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y - 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y + 1, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y + 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y + 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y - 1, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x, y - 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y - 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y + 1, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x, y + 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y + 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y - 1, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y - 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y - 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y + 1, z - 1])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y + 1, z])
+                        {
+                            neighbors++;
+                        }
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y + 1, z + 1])
+                        {
+                            neighbors++;
+                        }
+                        #endregion
+
                         nextWorld[x, y, z] = (Y < neighbors && neighbors < Z) || (W < neighbors && neighbors < X && currentWorld[x, y, z]);
                     }
                 }
