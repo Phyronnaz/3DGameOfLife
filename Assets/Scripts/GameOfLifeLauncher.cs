@@ -13,6 +13,7 @@ namespace Assets.Scripts
 
         void Start()
         {
+            Profiler.maxNumberOfSamplesPerFrame = 100000;
             gameOfLife = new GameOfLife(Size, Size, Size, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
             for (int x = 0; x < Size; x++)
             {

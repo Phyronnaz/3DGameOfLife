@@ -85,14 +85,6 @@ namespace Assets.Scripts
             }
         }
 
-        public void SimpleUpdate()
-        {
-            foreach (var g in gameOfLifeRenderers)
-            {
-                g.UpdateWhiteCubes();
-            }
-        }
-
 
         private void InitRenderers()
         {
