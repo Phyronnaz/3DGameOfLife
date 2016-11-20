@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Threading;
 using System.Collections.Generic;
 
 namespace Assets.Scripts
@@ -14,7 +15,7 @@ namespace Assets.Scripts
         //Size of a thread
         public static int ThreadSize = 30;
         //Size of a chunk (<40)
-        public static int ChunkSize = 40;
+        public static int ChunkSize = 39;
 
         Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
         bool[][,,] worlds = new bool[3][,,];
@@ -121,21 +122,35 @@ namespace Assets.Scripts
 
         private void CalculateNextWorld(bool[,,] currentWorld, bool[,,] nextWorld)
         {
-            for (int i = 0; i < XSize / ThreadSize; i++)
+            var waitHandles = new AutoResetEvent[(XSize / ThreadSize + 1) * (YSize / ThreadSize + 1) * (ZSize / ThreadSize + 1)];
+
+            for (int i = 0; i < XSize / ThreadSize + 1; i++)
             {
-                for (int j = 0; j < YSize / ThreadSize; j++)
+                for (int j = 0; j < YSize / ThreadSize + 1; j++)
                 {
-                    for (int k = 0; k < ZSize / ThreadSize; k++)
+                    for (int k = 0; k < ZSize / ThreadSize + 1; k++)
                     {
-                        Thread(currentWorld, nextWorld, ThreadSize * i, ThreadSize * (i + 1), ThreadSize * j, ThreadSize * (j + 1), ThreadSize * k, ThreadSize * (k + 1));
+                        var x = i;
+                        var y = j;
+                        var z = k;
+                        waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)] = new AutoResetEvent(false);
+                        ThreadPool.QueueUserWorkItem(state => Thread(currentWorld, nextWorld,
+                                                                    ThreadSize * x, Mathf.Min(XSize, ThreadSize * (x + 1)),
+                                                                    ThreadSize * y, Mathf.Min(YSize, ThreadSize * (y + 1)),
+                                                                    ThreadSize * z, Mathf.Min(ZSize, ThreadSize * (z + 1)),
+                                                                    waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)]));
                     }
                 }
             }
-            Thread(currentWorld, nextWorld, XSize / ThreadSize, XSize, YSize / ThreadSize, YSize, ZSize / ThreadSize, ZSize);
+            foreach (var w in waitHandles)
+            {
+                w.WaitOne();
+            }
         }
 
         private static void Thread(bool[,,] currentWorld, bool[,,] nextWorld,
-            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd)
+            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
+            AutoResetEvent waitHandle)
         {
             for (int x = xStart; x < xEnd; x++)
             {
@@ -166,6 +181,7 @@ namespace Assets.Scripts
                     }
                 }
             }
+            waitHandle.Set();
         }
     }
 }

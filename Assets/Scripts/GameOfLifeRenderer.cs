@@ -110,7 +110,7 @@ namespace Assets.Scripts
                     }
                 }
             }
-            redMesh.triangles = triangles;
+            redMesh.SetTriangles(triangles, 0, false);
             redMesh.UploadMeshData(false);
         }
         public void UpdateWhiteCubes()
@@ -134,7 +134,7 @@ namespace Assets.Scripts
                     }
                 }
             }
-            whiteMesh.triangles = triangles;
+            whiteMesh.SetTriangles(triangles, 0, false);
             whiteMesh.UploadMeshData(false);
         }
         public void UpdateGreenCubes()
@@ -158,7 +158,7 @@ namespace Assets.Scripts
                     }
                 }
             }
-            greenMesh.triangles = triangles;
+            greenMesh.SetTriangles(triangles, 0, false);
             greenMesh.UploadMeshData(false);
         }
         public void UpdateYellowCubes()
@@ -182,7 +182,7 @@ namespace Assets.Scripts
                     }
                 }
             }
-            yellowMesh.triangles = triangles;
+            yellowMesh.SetTriangles(triangles, 0, false);
             yellowMesh.UploadMeshData(false);
         }
 
