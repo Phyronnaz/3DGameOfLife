@@ -20,28 +20,43 @@ namespace Assets.Scripts
         public bool Busy;
 
         readonly Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
-        bool[][,,] worlds = new bool[3][,,];
+        bool[][,,] worlds;
         GameOfLifeRenderer[] gameOfLifeRenderers;
-        int currentWorldIndex;
+        int m_currentWorldIndex;
+        int m_realWorldIndex;
         ManualResetEvent[] nextWaitHandles;
         ManualResetEvent[] cubesWaitHandles;
+        ManualResetEvent[] cacheWaitHandles;
         bool cubesUpdateWaiting;
         bool cubesUpdateInProgress;
         bool nextInProgress;
+        bool cacheInProgress;
         Stopwatch trianglesStopwatch;
         Stopwatch computationStopwatch;
+        uint cache;
+
+        public uint Cache { get { return cache; } set { cache = (uint)Mathf.Min(value, worlds.Length - 3); Log.Cache(GetCacheSize()); } }
 
         public int XSize { get { return worlds[0].GetLength(0); } }
         public int YSize { get { return worlds[0].GetLength(1); } }
         public int ZSize { get { return worlds[0].GetLength(2); } }
 
+        int currentWorldIndex { get { return m_currentWorldIndex; } set { m_currentWorldIndex = mod(value, worlds.Length); Log.Cache(GetCacheSize()); } }
+        int realWorldIndex { get { return m_realWorldIndex; } set { m_realWorldIndex = mod(value, worlds.Length); Log.Cache(GetCacheSize()); } }
 
-        public GameOfLife(int XSize, int YSize, int ZSize,
+
+        public GameOfLife(int XSize, int YSize, int ZSize, uint cacheSize,
             Material redMaterial, Material whiteMaterial, Material greenMaterial, Material yellowMaterial)
         {
-            worlds[0] = new bool[XSize, YSize, ZSize];
-            worlds[1] = new bool[XSize, YSize, ZSize];
-            worlds[2] = new bool[XSize, YSize, ZSize];
+            worlds = new bool[3 + cacheSize][,,];
+            Cache = cacheSize;
+            for (int i = 0; i < worlds.Length; i++)
+            {
+                worlds[i] = new bool[XSize, YSize, ZSize];
+            }
+
+            currentWorldIndex = 2;
+            realWorldIndex = 2;
 
             RedMaterial = redMaterial;
             WhiteMaterial = whiteMaterial;
@@ -60,25 +75,55 @@ namespace Assets.Scripts
             worlds[1] = world;
             worlds[2] = new bool[size, size, size];
 
-            currentWorldIndex = 1;
+            currentWorldIndex = 2;
+            realWorldIndex = 2;
 
             InitRenderers();
         }
 
-        public bool[,,] GetWorld(int index)
+        public bool[,,] GetCurrentWorld(int shift)
         {
-            return worlds[(worlds.Length + currentWorldIndex + index) % worlds.Length];
+            return worlds[mod(currentWorldIndex + shift, worlds.Length)];
         }
 
+        public bool[,,] GetRealWorld(int shift)
+        {
+            return worlds[mod(realWorldIndex + shift, worlds.Length)];
+        }
+
+        public bool AlreadyComputed(int index)
+        {
+            index = mod(index, worlds.Length);
+            if (currentWorldIndex <= realWorldIndex)
+            {
+                return currentWorldIndex <= index && index <= realWorldIndex;
+            }
+            else
+            {
+                return (index <= realWorldIndex) || (currentWorldIndex <= index);
+            }
+        }
+
+        public int GetCacheSize()
+        {
+            if (currentWorldIndex <= realWorldIndex)
+            {
+                return realWorldIndex - currentWorldIndex;
+            }
+            else
+            {
+                return realWorldIndex + worlds.Length - currentWorldIndex;
+            }
+        }
 
         public void SetBlock(int x, int y, int z, bool value)
         {
-            GetWorld(-1)[x, y, z] = value;
+            GetCurrentWorld(-1)[x, y, z] = value;
         }
 
         public void ApplyBlocksChanges()
         {
-            var waitHandles = CalculateNextWorld(GetWorld(-1), GetWorld(0));
+            var waitHandles = CalculateNextWorld(GetCurrentWorld(-1), GetCurrentWorld(0));
             foreach (var w in waitHandles)
             {
                 w.WaitOne();
@@ -102,7 +147,6 @@ namespace Assets.Scripts
                     Log.ComputationTime(computationStopwatch.ElapsedMilliseconds);
                     computationStopwatch.Stop();
                 }
-                Busy = nextInProgress;
             }
             if (cubesUpdateWaiting && !nextInProgress)
             {
@@ -126,22 +170,50 @@ namespace Assets.Scripts
                     trianglesStopwatch.Stop();
                     UpdateMeshes();
                 }
-                Busy = cubesUpdateInProgress;
             }
+
+            if (cacheInProgress)
+            {
+                bool ended = true;
+                foreach (var w in cacheWaitHandles)
+                {
+                    ended = ended && w.WaitOne(0);
+                }
+                if (ended)
+                {
+                    cacheInProgress = false;
+                    realWorldIndex++;
+                }
+            }
+
+            if (GetCacheSize() < Cache && !nextInProgress && !cacheInProgress && !cubesUpdateInProgress)
+            {
+                cacheWaitHandles = CalculateNextWorld(GetRealWorld(0), GetRealWorld(1));
+                cacheInProgress = true;
+            }
+
+            Busy = nextInProgress || cubesUpdateInProgress;
         }
 
         public void Next()
         {
             if (Busy)
             {
-                UnityEngine.Debug.LogWarning("Not able to calculate next: Busy");
+                Log.Warning("Not able to calculate next: Busy");
             }
             else
             {
-                nextWaitHandles = CalculateNextWorld(GetWorld(0), GetWorld(1));
-                nextInProgress = true;
-                computationStopwatch = new Stopwatch();
-                computationStopwatch.Start();
+                if (!AlreadyComputed(currentWorldIndex + 1))
+                {
+                    nextWaitHandles = CalculateNextWorld(GetCurrentWorld(0), GetCurrentWorld(1));
+                    nextInProgress = true;
+                    computationStopwatch = new Stopwatch();
+                    computationStopwatch.Start();
+                }
+                else
+                {
+                    currentWorldIndex++;
+                }
             }
         }
 
@@ -149,14 +221,13 @@ namespace Assets.Scripts
         {
             if (Busy)
             {
-                UnityEngine.Debug.LogWarning("Not able to update cubes: Busy");
+                Log.Warning("Not able to update cubes: Busy");
             }
             else
             {
                 cubesUpdateWaiting = true;
             }
         }
-
 
 
 
@@ -194,7 +265,7 @@ namespace Assets.Scripts
             {
                 var x = i;
                 waitHandles[x] = new ManualResetEvent(false);
-                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetWorld(0), GetWorld(1), GetWorld(2)));
+                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetCurrentWorld(0), GetCurrentWorld(-1), GetCurrentWorld(-2)));
             }
             return waitHandles;
         }
@@ -359,6 +430,11 @@ namespace Assets.Scripts
                 }
             }
             waitHandle.Set();
+        }
+
+        private static int mod(int x, int m)
+        {
+            return (x % m + m) % m;
         }
     }
 }

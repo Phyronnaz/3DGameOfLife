@@ -6,6 +6,8 @@ namespace Assets.Scripts
     {
         public int Size = 10;
 
+        public uint CacheSize = 3;
+
         public Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
 
         public float RefreshRate = 0.5f;
@@ -14,7 +16,7 @@ namespace Assets.Scripts
 
         void Start()
         {
-            gameOfLife = new GameOfLife(Size, Size, Size, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
+            gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
             for (int x = 0; x < Size; x++)
             {
                 for (int y = 0; y < Size; y++)
