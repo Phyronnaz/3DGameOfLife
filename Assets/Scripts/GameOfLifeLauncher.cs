@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Diagnostics;
 
 namespace Assets.Scripts
 {
@@ -13,7 +14,6 @@ namespace Assets.Scripts
 
         void Start()
         {
-            Profiler.maxNumberOfSamplesPerFrame = 100000;
             gameOfLife = new GameOfLife(Size, Size, Size, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
             for (int x = 0; x < Size; x++)
             {
@@ -33,8 +33,17 @@ namespace Assets.Scripts
         {
             if (Input.GetKeyDown(KeyCode.Return))
             {
+                print("//////////////////////////////////////////");
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
                 gameOfLife.Next();
+                print("Calcul time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+                stopwatch.Reset();
+                stopwatch.Start();
                 gameOfLife.UpdateCubes();
+                print("Render time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+                stopwatch.Stop();
+                print("//////////////////////////////////////////");
             }
         }
     }

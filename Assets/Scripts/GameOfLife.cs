@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Threading;
+using System.Diagnostics;
 using System.Collections.Generic;
 
 namespace Assets.Scripts
@@ -17,9 +18,9 @@ namespace Assets.Scripts
         //Size of a chunk (<40)
         public static int ChunkSize = 39;
 
-        Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
+        readonly Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
         bool[][,,] worlds = new bool[3][,,];
-        GameOfLifeRenderer[,,] gameOfLifeRenderers;
+        GameOfLifeRenderer[] gameOfLifeRenderers;
         int currentWorldIndex;
 
         public int XSize { get { return worlds[0].GetLength(0); } }
@@ -79,10 +80,33 @@ namespace Assets.Scripts
 
         public void UpdateCubes()
         {
-            foreach (var g in gameOfLifeRenderers)
+            var size = (XSize / ChunkSize + 1) * (YSize / ChunkSize + 1) * (ZSize / ChunkSize + 1);
+            var waitHandles = new AutoResetEvent[size];
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            for (int i = 0; i < size; i++)
             {
-                g.UpdateCubes();
+                var x = i;
+                waitHandles[x] = new AutoResetEvent(false);
+                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetWorld(0), GetWorld(1), GetWorld(2)));
             }
+            foreach (var w in waitHandles)
+            {
+                w.WaitOne();
+            }
+
+            UnityEngine.Debug.Log("Triangles Calcul time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+            stopwatch.Reset();
+            stopwatch.Start();
+
+            for (int i = 0; i < size; i++)
+            {
+                gameOfLifeRenderers[i].UpdateMeshes();
+            }
+            UnityEngine.Debug.Log("Meshes Update time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+            stopwatch.Stop();
         }
 
 
@@ -95,17 +119,17 @@ namespace Assets.Scripts
                     Object.Destroy(g.gameObject);
                 }
             }
-            gameOfLifeRenderers = new GameOfLifeRenderer[XSize / ChunkSize + 1, YSize / ChunkSize + 1, ZSize / ChunkSize + 1];
-            for (int i = 0; i < XSize / ChunkSize + 1; i++)
+            gameOfLifeRenderers = new GameOfLifeRenderer[(XSize / ChunkSize + 1) * (YSize / ChunkSize + 1) * (ZSize / ChunkSize + 1)];
+            for (int x = 0; x < XSize / ChunkSize + 1; x++)
             {
-                for (int j = 0; j < YSize / ChunkSize + 1; j++)
+                for (int y = 0; y < YSize / ChunkSize + 1; y++)
                 {
-                    for (int k = 0; k < ZSize / ChunkSize + 1; k++)
+                    for (int z = 0; z < ZSize / ChunkSize + 1; z++)
                     {
-                        gameOfLifeRenderers[i, j, k] = new GameOfLifeRenderer(this,
-                            ChunkSize * i, Mathf.Min(XSize, ChunkSize * (i + 1)),
-                            ChunkSize * j, Mathf.Min(XSize, ChunkSize * (j + 1)),
-                            ChunkSize * k, Mathf.Min(XSize, ChunkSize * (k + 1)),
+                        gameOfLifeRenderers[x + (XSize / ChunkSize + 1) * (y + (YSize / ChunkSize + 1) * z)] = new GameOfLifeRenderer(
+                            ChunkSize * x, Mathf.Min(XSize, ChunkSize * (x + 1)),
+                            ChunkSize * y, Mathf.Min(XSize, ChunkSize * (y + 1)),
+                            ChunkSize * z, Mathf.Min(XSize, ChunkSize * (z + 1)),
                             RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
                     }
                 }

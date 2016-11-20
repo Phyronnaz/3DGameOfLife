@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Diagnostics;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,23 +8,24 @@ namespace Assets.Scripts
 {
     class GameOfLifeRenderer
     {
-        public GameObject gameObject;
+        public readonly GameObject gameObject;
 
         public int XSize { get { return XEnd - XStart; } }
         public int YSize { get { return YEnd - YStart; } }
         public int ZSize { get { return ZEnd - ZStart; } }
 
-        int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
-        Mesh redMesh, whiteMesh, greenMesh, yellowMesh;
-        GameOfLife gameOfLife;
+        readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
+        readonly Mesh redMesh, whiteMesh, greenMesh, yellowMesh;
+        readonly GameOfLife gameOfLife;
+
+        int[] redTriangles, whiteTriangles, greenTriangles, yellowTriangles;
+        int[] redTrianglesCache, whiteTrianglesCache, greenTrianglesCache, yellowTrianglesCache;
 
 
         public GameOfLifeRenderer(
-            GameOfLife gameOfLife,
             int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
             Material redMaterial, Material whiteMaterial, Material greenMaterial, Material yellowMaterial)
         {
-            this.gameOfLife = gameOfLife;
             gameObject = new GameObject();
             gameObject.transform.position = new Vector3(xStart, yStart, zStart);
 
@@ -79,14 +82,19 @@ namespace Assets.Scripts
             whiteMesh.vertices = (Vector3[])vertices.Clone();
             greenMesh.vertices = (Vector3[])vertices.Clone();
             yellowMesh.vertices = (Vector3[])vertices.Clone();
+
+            redTriangles = new int[36 * XSize * YSize * ZSize];
+            whiteTriangles = new int[36 * XSize * YSize * ZSize];
+            greenTriangles = new int[36 * XSize * YSize * ZSize];
+            yellowTriangles = new int[36 * XSize * YSize * ZSize];
         }
 
-        public void UpdateCubes()
+        public void UpdateTriangles(AutoResetEvent waitHandle, bool[,,] world0, bool[,,] world1, bool[,,] world2)
         {
-            var redTriangles = new List<int>(36 * XSize * YSize * ZSize);
-            var whiteTriangles = new List<int>(36 * XSize * YSize * ZSize);
-            var greenTriangles = new List<int>(36 * XSize * YSize * ZSize);
-            var yellowTriangles = new List<int>(36 * XSize * YSize * ZSize);
+            var redCount = 0;
+            var whiteCount = 0;
+            var greenCount = 0;
+            var yellowCount = 0;
 
             for (int x = 0; x < XSize; x++)
             {
@@ -94,41 +102,67 @@ namespace Assets.Scripts
                 {
                     for (int z = 0; z < ZSize; z++)
                     {
+                        var b1 = world2[x + XStart, y + YStart, z + ZStart];
+                        var b2 = world1[x + XStart, y + YStart, z + ZStart];
+                        var b3 = world0[x + XStart, y + YStart, z + ZStart];
                         for (int i = 0; i < Triangles.Length / 3; i++)
                         {
-                            var verticeIndex = x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
-                            //Red
-                            if (gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && !gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
+                            var verticesIndex = x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
+
+                            if (b1 && b2 && !b3) //Red
                             {
-                                redTriangles.Add(verticeIndex);
+                                redTriangles[redCount] = verticesIndex;
+                                redCount++;
                             }
-                            //White
-                            if (gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
+                            else if (b1 && b2 && b3) //White
                             {
-                                whiteTriangles.Add(verticeIndex);
+                                whiteTriangles[whiteCount] = verticesIndex;
+                                whiteCount++;
                             }
-                            //Green
-                            if (!gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
+                            else if (!b1 && b2 && b3) //Green
                             {
-                                greenTriangles.Add(verticeIndex);
+                                greenTriangles[greenCount] = verticesIndex;
+                                greenCount++;
                             }
-                            //Yellow
-                            if (!gameOfLife.GetWorld(-2)[x + XStart, y + YStart, z + ZStart] && gameOfLife.GetWorld(-1)[x + XStart, y + YStart, z + ZStart] && !gameOfLife.GetWorld(0)[x + XStart, y + YStart, z + ZStart])
+                            else if (!b1 && b2 && !b3) //Yellow
                             {
-                                yellowTriangles.Add(verticeIndex);
+                                yellowTriangles[yellowCount] = verticesIndex;
+                                yellowCount++;
                             }
                         }
                     }
                 }
             }
-            redMesh.SetTriangles(redTriangles, 0, false);
-            whiteMesh.SetTriangles(whiteTriangles, 0, false);
-            greenMesh.SetTriangles(greenTriangles, 0, false);
-            yellowMesh.SetTriangles(yellowTriangles, 0, false);
+
+            redTrianglesCache = new int[redCount];
+            whiteTrianglesCache = new int[whiteCount];
+            greenTrianglesCache = new int[greenCount];
+            yellowTrianglesCache = new int[yellowCount];
+
+            Array.Copy(redTriangles, 0, redTrianglesCache, 0, redCount);
+            Array.Copy(whiteTriangles, 0, whiteTrianglesCache, 0, whiteCount);
+            Array.Copy(greenTriangles, 0, greenTrianglesCache, 0, greenCount);
+            Array.Copy(yellowTriangles, 0, yellowTrianglesCache, 0, yellowCount);
+
+            waitHandle.Set();
+        }
+
+        public void UpdateMeshes()
+        {
+            redMesh.SetTriangles(redTrianglesCache, 0, false);
+            whiteMesh.SetTriangles(whiteTrianglesCache, 0, false);
+            greenMesh.SetTriangles(greenTrianglesCache, 0, false);
+            yellowMesh.SetTriangles(yellowTrianglesCache, 0, false);
+
             redMesh.UploadMeshData(false);
             whiteMesh.UploadMeshData(false);
             greenMesh.UploadMeshData(false);
             yellowMesh.UploadMeshData(false);
+
+            redTrianglesCache = new int[0];
+            whiteTrianglesCache = new int[0];
+            greenTrianglesCache = new int[0];
+            yellowTrianglesCache = new int[0];
         }
 
 
