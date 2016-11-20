@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using System.Threading;
 using System.Diagnostics;
-using System.Collections.Generic;
 
 namespace Assets.Scripts
 {
@@ -18,10 +17,20 @@ namespace Assets.Scripts
         //Size of a chunk (<40)
         public static int ChunkSize = 39;
 
+        public bool Busy;
+
         readonly Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
         bool[][,,] worlds = new bool[3][,,];
         GameOfLifeRenderer[] gameOfLifeRenderers;
         int currentWorldIndex;
+        ManualResetEvent[] nextWaitHandles;
+        ManualResetEvent[] cubesWaitHandles;
+        bool cubesUpdateWaiting;
+        bool cubesUpdateInProgress;
+        bool nextInProgress;
+        Stopwatch trianglesStopwatch;
+        Stopwatch meshesStopwatch;
+        Stopwatch computationStopwatch;
 
         public int XSize { get { return worlds[0].GetLength(0); } }
         public int YSize { get { return worlds[0].GetLength(1); } }
@@ -44,6 +53,7 @@ namespace Assets.Scripts
         }
 
 
+
         public void SetWorld(bool[,,] world)
         {
             var size = world.GetLength(0);
@@ -52,10 +62,15 @@ namespace Assets.Scripts
             worlds[2] = new bool[size, size, size];
 
             currentWorldIndex = 1;
-            Next();
 
             InitRenderers();
         }
+
+        public bool[,,] GetWorld(int index)
+        {
+            return worlds[(worlds.Length + currentWorldIndex + index) % worlds.Length];
+        }
+
 
         public void SetBlock(int x, int y, int z, bool value)
         {
@@ -64,50 +79,90 @@ namespace Assets.Scripts
 
         public void ApplyBlocksChanges()
         {
-            CalculateNextWorld(GetWorld(-1), GetWorld(0));
-        }
-
-        public bool[,,] GetWorld(int index)
-        {
-            return worlds[(worlds.Length + currentWorldIndex + index) % worlds.Length];
-        }
-
-        public void Next()
-        {
-            CalculateNextWorld(GetWorld(0), GetWorld(1));
-            currentWorldIndex++;
-        }
-
-        public void UpdateCubes()
-        {
-            var size = (XSize / ChunkSize + 1) * (YSize / ChunkSize + 1) * (ZSize / ChunkSize + 1);
-            var waitHandles = new AutoResetEvent[size];
-
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-
-            for (int i = 0; i < size; i++)
-            {
-                var x = i;
-                waitHandles[x] = new AutoResetEvent(false);
-                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetWorld(0), GetWorld(1), GetWorld(2)));
-            }
+            var waitHandles = CalculateNextWorld(GetWorld(-1), GetWorld(0));
             foreach (var w in waitHandles)
             {
                 w.WaitOne();
             }
-
-            UnityEngine.Debug.Log("Triangles Calcul time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-            stopwatch.Reset();
-            stopwatch.Start();
-
-            for (int i = 0; i < size; i++)
-            {
-                gameOfLifeRenderers[i].UpdateMeshes();
-            }
-            UnityEngine.Debug.Log("Meshes Update time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-            stopwatch.Stop();
         }
+
+
+        public void Update()
+        {
+            if (nextInProgress)
+            {
+                bool ended = true;
+                foreach (var w in nextWaitHandles)
+                {
+                    ended = ended && w.WaitOne(0);
+                }
+                if (ended)
+                {
+                    nextInProgress = false;
+                    currentWorldIndex++;
+                    UnityEngine.Debug.Log("Computation time: " + computationStopwatch.ElapsedMilliseconds.ToString() + "ms");
+                    computationStopwatch.Stop();
+                }
+                Busy = nextInProgress;
+            }
+            if (cubesUpdateWaiting && !nextInProgress)
+            {
+                cubesUpdateWaiting = false;
+                cubesUpdateInProgress = true;
+                cubesWaitHandles = UpdateTriangles();
+                trianglesStopwatch = new Stopwatch();
+                trianglesStopwatch.Start();
+            }
+            if (cubesUpdateInProgress)
+            {
+                bool ended = true;
+                foreach (var w in cubesWaitHandles)
+                {
+                    ended = ended && w.WaitOne(0);
+                }
+                if (ended)
+                {
+                    cubesUpdateInProgress = false;
+                    UnityEngine.Debug.Log("Triangles Calcul time: " + trianglesStopwatch.ElapsedMilliseconds.ToString() + "ms");
+                    trianglesStopwatch.Stop();
+                    meshesStopwatch = new Stopwatch();
+                    meshesStopwatch.Start();
+                    UpdateMeshes();
+                    UnityEngine.Debug.Log("Meshes Update time: " + meshesStopwatch.ElapsedMilliseconds.ToString() + "ms");
+                    meshesStopwatch.Stop();
+                }
+                Busy = cubesUpdateInProgress;
+            }
+        }
+
+        public void Next()
+        {
+            if (Busy)
+            {
+                UnityEngine.Debug.LogWarning("Not able to calculate next: Busy");
+            }
+            else
+            {
+                nextWaitHandles = CalculateNextWorld(GetWorld(0), GetWorld(1));
+                nextInProgress = true;
+                computationStopwatch = new Stopwatch();
+                computationStopwatch.Start();
+            }
+        }
+
+        public void UpdateCubes()
+        {
+            if (Busy)
+            {
+                UnityEngine.Debug.LogWarning("Not able to update cubes: Busy");
+            }
+            else
+            {
+                cubesUpdateWaiting = true;
+            }
+        }
+
+
 
 
         private void InitRenderers()
@@ -116,7 +171,7 @@ namespace Assets.Scripts
             {
                 foreach (var g in gameOfLifeRenderers)
                 {
-                    Object.Destroy(g.gameObject);
+                    GameObject.Destroy(g.gameObject);
                 }
             }
             gameOfLifeRenderers = new GameOfLifeRenderer[(XSize / ChunkSize + 1) * (YSize / ChunkSize + 1) * (ZSize / ChunkSize + 1)];
@@ -136,9 +191,30 @@ namespace Assets.Scripts
             }
         }
 
-        private void CalculateNextWorld(bool[,,] currentWorld, bool[,,] nextWorld)
+        private ManualResetEvent[] UpdateTriangles()
         {
-            var waitHandles = new AutoResetEvent[(XSize / ThreadSize + 1) * (YSize / ThreadSize + 1) * (ZSize / ThreadSize + 1)];
+            var waitHandles = new ManualResetEvent[gameOfLifeRenderers.Length];
+
+            for (int i = 0; i < gameOfLifeRenderers.Length; i++)
+            {
+                var x = i;
+                waitHandles[x] = new ManualResetEvent(false);
+                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetWorld(0), GetWorld(1), GetWorld(2)));
+            }
+            return waitHandles;
+        }
+
+        private void UpdateMeshes()
+        {
+            for (int i = 0; i < gameOfLifeRenderers.Length; i++)
+            {
+                gameOfLifeRenderers[i].UpdateMeshes();
+            }
+        }
+
+        private ManualResetEvent[] CalculateNextWorld(bool[,,] currentWorld, bool[,,] nextWorld)
+        {
+            var waitHandles = new ManualResetEvent[(XSize / ThreadSize + 1) * (YSize / ThreadSize + 1) * (ZSize / ThreadSize + 1)];
 
             for (int i = 0; i < XSize / ThreadSize + 1; i++)
             {
@@ -149,7 +225,7 @@ namespace Assets.Scripts
                         var x = i;
                         var y = j;
                         var z = k;
-                        waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)] = new AutoResetEvent(false);
+                        waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)] = new ManualResetEvent(false);
                         ThreadPool.QueueUserWorkItem(state => Thread(currentWorld, nextWorld,
                                                                     ThreadSize * x, Mathf.Min(XSize, ThreadSize * (x + 1)),
                                                                     ThreadSize * y, Mathf.Min(YSize, ThreadSize * (y + 1)),
@@ -158,15 +234,13 @@ namespace Assets.Scripts
                     }
                 }
             }
-            foreach (var w in waitHandles)
-            {
-                w.WaitOne();
-            }
+            return waitHandles;
         }
+
 
         private static void Thread(bool[,,] currentWorld, bool[,,] nextWorld,
             int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
-            AutoResetEvent waitHandle)
+            ManualResetEvent waitHandle)
         {
             for (int x = xStart; x < xEnd; x++)
             {

@@ -1,6 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
-using System.Diagnostics;
 
 namespace Assets.Scripts
 {
@@ -9,6 +7,8 @@ namespace Assets.Scripts
         public int Size = 10;
 
         public Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
+
+        public float RefreshRate = 0.5f;
 
         GameOfLife gameOfLife;
 
@@ -21,30 +21,27 @@ namespace Assets.Scripts
                 {
                     for (int z = 0; z < Size; z++)
                     {
-                        gameOfLife.SetBlock(x, y, z, Random.value > 0.9);
+                        gameOfLife.SetBlock(x, y, z, Random.value > 0.7);
                     }
                 }
             }
             gameOfLife.ApplyBlocksChanges();
             gameOfLife.UpdateCubes();
+            InvokeRepeating("GameOfLifeUpdate", 0, RefreshRate);
         }
 
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.Return))
             {
-                print("//////////////////////////////////////////");
-                Stopwatch stopwatch = new Stopwatch();
-                stopwatch.Start();
                 gameOfLife.Next();
-                print("Calcul time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-                stopwatch.Reset();
-                stopwatch.Start();
                 gameOfLife.UpdateCubes();
-                print("Render time: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-                stopwatch.Stop();
-                print("//////////////////////////////////////////");
             }
+        }
+
+        void GameOfLifeUpdate()
+        {
+            gameOfLife.Update();
         }
     }
 }

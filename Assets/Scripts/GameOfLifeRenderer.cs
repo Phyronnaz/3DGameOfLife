@@ -89,7 +89,7 @@ namespace Assets.Scripts
             yellowTriangles = new int[36 * XSize * YSize * ZSize];
         }
 
-        public void UpdateTriangles(AutoResetEvent waitHandle, bool[,,] world0, bool[,,] world1, bool[,,] world2)
+        public void UpdateTriangles(ManualResetEvent waitHandle, bool[,,] world0, bool[,,] world1, bool[,,] world2)
         {
             var redCount = 0;
             var whiteCount = 0;
@@ -158,11 +158,6 @@ namespace Assets.Scripts
             whiteMesh.UploadMeshData(false);
             greenMesh.UploadMeshData(false);
             yellowMesh.UploadMeshData(false);
-
-            redTrianglesCache = new int[0];
-            whiteTrianglesCache = new int[0];
-            greenTrianglesCache = new int[0];
-            yellowTrianglesCache = new int[0];
         }
 
 

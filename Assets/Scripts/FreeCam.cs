@@ -14,7 +14,7 @@ public class FreeCam : MonoBehaviour
 
     public bool hideCursor = false;
 
-    private bool togglePressed = false;
+    public bool togglePressed = false;
 
     private void OnEnable()
     {
