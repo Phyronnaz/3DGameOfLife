@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
+using System;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Assets.Scripts
 {
@@ -35,7 +38,7 @@ namespace Assets.Scripts
         Stopwatch computationStopwatch;
         uint cache;
 
-        public uint Cache { get { return cache; } set { cache = (uint)Mathf.Min(value, worlds.Length - 3); Log.Cache(GetCacheSize()); } }
+        public uint Cache { get { return cache; } set { cache = (uint)Mathf.Min(value, worlds.Length - 3); } }
 
         public int XSize { get { return worlds[0].GetLength(0); } }
         public int YSize { get { return worlds[0].GetLength(1); } }
@@ -55,8 +58,8 @@ namespace Assets.Scripts
                 worlds[i] = new bool[XSize, YSize, ZSize];
             }
 
-            currentWorldIndex = 2;
-            realWorldIndex = 2;
+            m_currentWorldIndex = 2;
+            m_realWorldIndex = 2;
 
             RedMaterial = redMaterial;
             WhiteMaterial = whiteMaterial;
@@ -113,6 +116,20 @@ namespace Assets.Scripts
             else
             {
                 return realWorldIndex + worlds.Length - currentWorldIndex;
+            }
+        }
+
+        public void BeginSettingBlocks()
+        {
+            for (int x = 0; x < XSize; x++)
+            {
+                for (int y = 0; y < YSize; y++)
+                {
+                    for (int z = 0; z < ZSize; z++)
+                    {
+                        GetCurrentWorld(-1)[x, y, z] = GetCurrentWorld(-2)[x, y, z];
+                    }
+                }
             }
         }
 

@@ -17,6 +17,7 @@ namespace Assets.Scripts
         void Start()
         {
             gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
+            gameOfLife.BeginSettingBlocks();
             for (int x = 0; x < Size; x++)
             {
                 for (int y = 0; y < Size; y++)
