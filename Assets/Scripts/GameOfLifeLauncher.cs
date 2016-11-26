@@ -8,8 +8,6 @@ namespace Assets.Scripts
     {
         public int Size = 10;
 
-        public uint CacheSize = 3;
-
         public Material Material;
 
         public float RefreshRate = 0.5f;
@@ -20,17 +18,8 @@ namespace Assets.Scripts
 
         void Start()
         {
-            gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, Material);
-            for (int x = 0; x < Size; x++)
-            {
-                for (int y = 0; y < Size; y++)
-                {
-                    for (int z = 0; z < Size; z++)
-                    {
-                        gameOfLife.SetBlock(x, y, z, Random.value > 0.99);
-                    }
-                }
-            }
+            gameOfLife = new GameOfLife(Size, Size, Size, Material);
+            
             gameOfLife.UpdateCubes();
             InvokeRepeating("GameOfLifeUpdate", 0, RefreshRate);
         }
@@ -41,18 +30,14 @@ namespace Assets.Scripts
             {
                 gameOfLife.Next();
                 gameOfLife.UpdateCubes();
-                if (editMode)
-                {
-                    gameOfLife.UpdateCollisions();
-                }
             }
             if (Input.GetKeyDown(KeyCode.E))
             {
                 editMode = !editMode;
-                if (editMode)
-                {
-                    gameOfLife.UpdateCollisions();
-                }
+            }
+            if (Input.GetKeyDown(KeyCode.U))
+            {
+                gameOfLife.UpdateCubes();
             }
             if (editMode)
             {
@@ -68,13 +53,17 @@ namespace Assets.Scripts
                 {
                     RaycastHit hit;
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                    if (Physics.Raycast(ray, out hit))
+                    if (Physics.Raycast(ray, out hit, 1000000))
                     {
                         var v = hit.point + hit.normal / 2;
                         if (gameOfLife.IsInWorld(v))
                         {
                             gameOfLife.SetBlock(v, true);
                             gameOfLife.UpdateChunk(v);
+                        }
+                        else
+                        {
+                            Log.LogWarning("Edge of the map!");
                         }
                     }
                 }

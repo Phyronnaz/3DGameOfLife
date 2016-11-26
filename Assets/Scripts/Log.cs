@@ -10,7 +10,6 @@ namespace Assets.Scripts
         public delegate void LogDelegate(string s);
         public static event LogDelegate ComputationTimeLog;
         public static event LogDelegate TrianglesTimesLog;
-        public static event LogDelegate CacheLog;
         public static event LogDelegate WarningsLog;
         public static event LogDelegate ErrorsLog;
 
@@ -21,11 +20,6 @@ namespace Assets.Scripts
         public static void LogTrianglesTime(long time)
         {
             TrianglesTimesLog("Triangles computation time: " + time + "ms");
-        }
-
-        public static void LogCache(int cache)
-        {
-            CacheLog("Cache: " + cache.ToString());
         }
 
         public static void LogWarning(string s)

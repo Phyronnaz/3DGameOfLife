@@ -36,13 +36,17 @@ namespace Assets.Scripts
             ZEnd = zEnd;
 
             var vertices = new Vector3[(XSize + 1) * (YSize + 1) * (ZSize + 1)];
+            var uv = new Vector2[(XSize + 1) * (YSize + 1) * (ZSize + 1)];
             for (int x = 0; x < XSize + 1; x++)
             {
                 for (int y = 0; y < YSize + 1; y++)
                 {
                     for (int z = 0; z < ZSize + 1; z++)
                     {
-                        vertices[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector3(x, y, z);
+                        vertices[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector3(x - 0.5f, y - 0.5f, z - 0.5f);
+                        var i = (XStart + x) * 1f / (GameOfLife.GOL.XSize + 1) * 0.8f + 0.1f;
+                        var j = (YStart + y) * 1f / (GameOfLife.GOL.YSize + 1) * 0.8f + 0.1f;
+                        uv[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector2(i, j);
                     }
                 }
             }
@@ -57,6 +61,7 @@ namespace Assets.Scripts
             mesh = go.AddComponent<MeshFilter>().mesh;
             mesh.MarkDynamic();
             mesh.vertices = vertices;
+            mesh.uv = uv;
             triangles = new int[36 * XSize * YSize * ZSize];
         }
 
@@ -64,12 +69,6 @@ namespace Assets.Scripts
         {
             triangles = null;
             trianglesCache = null;
-        }
-
-        public void UpdateCollisions(bool[,,] world)
-        {
-            mesh.RecalculateNormals();
-            collider.sharedMesh = mesh;
         }
 
         public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
@@ -110,8 +109,10 @@ namespace Assets.Scripts
         public void UpdateMeshes()
         {
             mesh.SetTriangles(trianglesCache, 0, false);
-
+            mesh.RecalculateNormals();
             mesh.UploadMeshData(false);
+            collider.sharedMesh = mesh;
+            trianglesCache = null;
         }
 
 

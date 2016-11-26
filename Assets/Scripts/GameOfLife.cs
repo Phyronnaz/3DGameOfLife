@@ -33,6 +33,8 @@ namespace Assets.Scripts
         Stopwatch computationStopwatch;
 
 
+        public static GameOfLife GOL { get; private set; }
+
         public bool[,,] World { get; private set; }
         private bool[,,] WorkingWorld { get; set; }
 
@@ -41,10 +43,12 @@ namespace Assets.Scripts
         public int ZSize { get { return World.GetLength(2); } }
 
 
-        public GameOfLife(int XSize, int YSize, int ZSize, uint cacheSize, Material material)
+        public GameOfLife(int XSize, int YSize, int ZSize, Material material)
         {
             World = new bool[XSize, YSize, ZSize];
             WorkingWorld = new bool[XSize, YSize, ZSize];
+
+            GOL = this;
 
             Material = material;
 
@@ -62,7 +66,7 @@ namespace Assets.Scripts
 
         public void SetBlock(Vector3 v, bool value)
         {
-            SetBlock((int)(v.x), (int)(v.y), (int)(v.z), value);
+            SetBlock(Mathf.RoundToInt(v.x), Mathf.RoundToInt(v.y), Mathf.RoundToInt(v.z), value);
         }
 
         public void SetBlock(int x, int y, int z, bool value)
@@ -80,7 +84,7 @@ namespace Assets.Scripts
 
         public bool GetBlock(Vector3 v)
         {
-            return GetBlock((int)(v.x), (int)(v.y), (int)(v.z));
+            return GetBlock(Mathf.RoundToInt(v.x), Mathf.RoundToInt(v.y), Mathf.RoundToInt(v.z));
         }
 
         public bool GetBlock(int x, int y, int z)
@@ -98,7 +102,7 @@ namespace Assets.Scripts
 
         public bool IsInWorld(Vector3 v)
         {
-            return IsInWorld((int)(v.x), (int)(v.y), (int)(v.z));
+            return IsInWorld(Mathf.RoundToInt(v.x), Mathf.RoundToInt(v.y), Mathf.RoundToInt(v.z));
         }
 
         public bool IsInWorld(int x, int y, int z)
@@ -108,24 +112,43 @@ namespace Assets.Scripts
                    0 <= z && z < ZSize;
         }
 
-        public void UpdateCollisions()
-        {
-            foreach (var renderer in gameOfLifeRenderers)
-            {
-                renderer.UpdateCollisions(World);
-            }
-        }
-
         public void UpdateChunk(Vector3 v)
         {
-            UpdateChunk((int)(v.x), (int)(v.y), (int)(v.z));
+            UpdateChunk(Mathf.RoundToInt(v.x), Mathf.RoundToInt(v.y), Mathf.RoundToInt(v.z));
         }
 
         public void UpdateChunk(int x, int y, int z)
         {
             gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateTriangles(World);
             gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateMeshes();
-            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateCollisions(World);
+        }
+
+        public void Randomize(float density)
+        {
+            for (int x = 0; x < XSize; x++)
+            {
+                for (int y = 0; y < YSize; y++)
+                {
+                    for (int z = 0; z < ZSize; z++)
+                    {
+                        SetBlock(x, y, z, UnityEngine.Random.value < density);
+                    }
+                }
+            }
+        }
+
+        public void Reset()
+        {
+            for (int x = 0; x < XSize; x++)
+            {
+                for (int y = 0; y < YSize; y++)
+                {
+                    for (int z = 0; z < ZSize; z++)
+                    {
+                        World[x, y, z] = false;
+                    }
+                }
+            }
         }
 
         public void Update()
