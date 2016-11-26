@@ -15,16 +15,14 @@ namespace Assets.Scripts
         public int ZSize { get { return ZEnd - ZStart; } }
 
         readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
-        readonly Mesh redMesh, whiteMesh, greenMesh, yellowMesh;
-        readonly GameOfLife gameOfLife;
+        readonly Mesh mesh;
 
-        int[] redTriangles, whiteTriangles, greenTriangles, yellowTriangles;
-        int[] redTrianglesCache, whiteTrianglesCache, greenTrianglesCache, yellowTrianglesCache;
+        int[] triangles;
+        int[] trianglesCache;
 
 
         public GameOfLifeRenderer(
-            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
-            Material redMaterial, Material whiteMaterial, Material greenMaterial, Material yellowMaterial)
+            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, Material material)
         {
             gameObject = new GameObject();
             gameObject.transform.position = new Vector3(xStart, yStart, zStart);
@@ -48,53 +46,26 @@ namespace Assets.Scripts
                 }
             }
 
-            var redGO = new GameObject();
-            var whiteGO = new GameObject();
-            var greenGO = new GameObject();
-            var yellowGO = new GameObject();
+            var go = new GameObject();
 
-            redGO.name = "Red";
-            whiteGO.name = "White";
-            greenGO.name = "Green";
-            yellowGO.name = "Yellow";
+            go.name = "GO";
 
-            redGO.transform.SetParent(gameObject.transform, false);
-            whiteGO.transform.SetParent(gameObject.transform, false);
-            greenGO.transform.SetParent(gameObject.transform, false);
-            yellowGO.transform.SetParent(gameObject.transform, false);
+            go.transform.SetParent(gameObject.transform, false);
 
-            redGO.AddComponent<MeshRenderer>().material = redMaterial;
-            whiteGO.AddComponent<MeshRenderer>().material = whiteMaterial;
-            greenGO.AddComponent<MeshRenderer>().material = greenMaterial;
-            yellowGO.AddComponent<MeshRenderer>().material = yellowMaterial;
+            go.AddComponent<MeshRenderer>().material = material;
 
-            redMesh = redGO.AddComponent<MeshFilter>().mesh;
-            whiteMesh = whiteGO.AddComponent<MeshFilter>().mesh;
-            greenMesh = greenGO.AddComponent<MeshFilter>().mesh;
-            yellowMesh = yellowGO.AddComponent<MeshFilter>().mesh;
+            mesh = go.AddComponent<MeshFilter>().mesh;
 
-            redMesh.MarkDynamic();
-            whiteMesh.MarkDynamic();
-            greenMesh.MarkDynamic();
-            yellowMesh.MarkDynamic();
+            mesh.MarkDynamic();
 
-            redMesh.vertices = vertices;
-            whiteMesh.vertices = (Vector3[])vertices.Clone();
-            greenMesh.vertices = (Vector3[])vertices.Clone();
-            yellowMesh.vertices = (Vector3[])vertices.Clone();
+            mesh.vertices = vertices;
 
-            redTriangles = new int[36 * XSize * YSize * ZSize];
-            whiteTriangles = new int[36 * XSize * YSize * ZSize];
-            greenTriangles = new int[36 * XSize * YSize * ZSize];
-            yellowTriangles = new int[36 * XSize * YSize * ZSize];
+            triangles = new int[36 * XSize * YSize * ZSize];
         }
 
-        public void UpdateTriangles(ManualResetEvent waitHandle, bool[,,] world0, bool[,,] world1, bool[,,] world2)
+        public void UpdateTriangles(ManualResetEvent waitHandle, bool[,,] world)
         {
-            var redCount = 0;
-            var whiteCount = 0;
-            var greenCount = 0;
-            var yellowCount = 0;
+            var count = 0;
 
             for (int x = 0; x < XSize; x++)
             {
@@ -102,66 +73,37 @@ namespace Assets.Scripts
                 {
                     for (int z = 0; z < ZSize; z++)
                     {
-                        var b1 = world2[x + XStart, y + YStart, z + ZStart];
-                        var b2 = world1[x + XStart, y + YStart, z + ZStart];
-                        var b3 = world0[x + XStart, y + YStart, z + ZStart];
-                        for (int i = 0; i < Triangles.Length / 3; i++)
+                        var b = world[x + XStart, y + YStart, z + ZStart];
+                        for (int i = 0; i < CubeTriangles.Length / 3; i++)
                         {
-                            var verticesIndex = x + Triangles[3 * i] + (XSize + 1) * (y + Triangles[3 * i + 1] + (YSize + 1) * (z + Triangles[3 * i + 2]));
+                            var verticesIndex = x + CubeTriangles[3 * i] + (XSize + 1) * (y + CubeTriangles[3 * i + 1] + (YSize + 1) * (z + CubeTriangles[3 * i + 2]));
 
-                            if (b1 && b2 && !b3) //Red
+                            if (b)
                             {
-                                redTriangles[redCount] = verticesIndex;
-                                redCount++;
-                            }
-                            else if (b1 && b2 && b3) //White
-                            {
-                                whiteTriangles[whiteCount] = verticesIndex;
-                                whiteCount++;
-                            }
-                            else if (!b1 && b2 && b3) //Green
-                            {
-                                greenTriangles[greenCount] = verticesIndex;
-                                greenCount++;
-                            }
-                            else if (!b1 && b2 && !b3) //Yellow
-                            {
-                                yellowTriangles[yellowCount] = verticesIndex;
-                                yellowCount++;
+                                triangles[count] = verticesIndex;
+                                count++;
                             }
                         }
                     }
                 }
             }
 
-            redTrianglesCache = new int[redCount];
-            whiteTrianglesCache = new int[whiteCount];
-            greenTrianglesCache = new int[greenCount];
-            yellowTrianglesCache = new int[yellowCount];
+            trianglesCache = new int[count];
 
-            Array.Copy(redTriangles, 0, redTrianglesCache, 0, redCount);
-            Array.Copy(whiteTriangles, 0, whiteTrianglesCache, 0, whiteCount);
-            Array.Copy(greenTriangles, 0, greenTrianglesCache, 0, greenCount);
-            Array.Copy(yellowTriangles, 0, yellowTrianglesCache, 0, yellowCount);
+            Array.Copy(triangles, 0, trianglesCache, 0, count);
 
             waitHandle.Set();
         }
 
         public void UpdateMeshes()
         {
-            redMesh.SetTriangles(redTrianglesCache, 0, false);
-            whiteMesh.SetTriangles(whiteTrianglesCache, 0, false);
-            greenMesh.SetTriangles(greenTrianglesCache, 0, false);
-            yellowMesh.SetTriangles(yellowTrianglesCache, 0, false);
+            mesh.SetTriangles(trianglesCache, 0, false);
 
-            redMesh.UploadMeshData(false);
-            whiteMesh.UploadMeshData(false);
-            greenMesh.UploadMeshData(false);
-            yellowMesh.UploadMeshData(false);
+            mesh.UploadMeshData(false);
         }
 
 
-        public static readonly int[] Triangles = new int[]{
+        public static readonly int[] CubeTriangles = new int[]{
                                                             0,0,0,
                                                             0,0,1,
                                                             0,1,1,

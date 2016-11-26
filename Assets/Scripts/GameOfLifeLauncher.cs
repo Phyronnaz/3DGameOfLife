@@ -8,7 +8,7 @@ namespace Assets.Scripts
 
         public uint CacheSize = 3;
 
-        public Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
+        public Material Material;
 
         public float RefreshRate = 0.5f;
 
@@ -16,8 +16,7 @@ namespace Assets.Scripts
 
         void Start()
         {
-            gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
-            gameOfLife.BeginSettingBlocks();
+            gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, Material);
             for (int x = 0; x < Size; x++)
             {
                 for (int y = 0; y < Size; y++)
@@ -28,7 +27,6 @@ namespace Assets.Scripts
                     }
                 }
             }
-            gameOfLife.ApplyBlocksChanges();
             gameOfLife.UpdateCubes();
             InvokeRepeating("GameOfLifeUpdate", 0, RefreshRate);
         }

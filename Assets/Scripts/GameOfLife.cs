@@ -16,55 +16,37 @@ namespace Assets.Scripts
         public static int Y = 2;
         public static int Z = 3;
         //Size of a thread
-        public static int ThreadSize = 30;
+        public static int ThreadSize = 25;
         //Size of a chunk (<40)
-        public static int ChunkSize = 39;
+        public static int ChunkSize = 25;
 
         public bool Busy;
 
-        readonly Material RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial;
-        bool[][,,] worlds;
+        readonly Material Material;
         GameOfLifeRenderer[] gameOfLifeRenderers;
-        int m_currentWorldIndex;
-        int m_realWorldIndex;
         ManualResetEvent[] nextWaitHandles;
         ManualResetEvent[] cubesWaitHandles;
-        ManualResetEvent[] cacheWaitHandles;
         bool cubesUpdateWaiting;
         bool cubesUpdateInProgress;
         bool nextInProgress;
-        bool cacheInProgress;
         Stopwatch trianglesStopwatch;
         Stopwatch computationStopwatch;
-        uint cache;
-
-        public uint Cache { get { return cache; } set { cache = (uint)Mathf.Min(value, worlds.Length - 3); } }
-
-        public int XSize { get { return worlds[0].GetLength(0); } }
-        public int YSize { get { return worlds[0].GetLength(1); } }
-        public int ZSize { get { return worlds[0].GetLength(2); } }
-
-        int currentWorldIndex { get { return m_currentWorldIndex; } set { m_currentWorldIndex = mod(value, worlds.Length); Log.Cache(GetCacheSize()); } }
-        int realWorldIndex { get { return m_realWorldIndex; } set { m_realWorldIndex = mod(value, worlds.Length); Log.Cache(GetCacheSize()); } }
 
 
-        public GameOfLife(int XSize, int YSize, int ZSize, uint cacheSize,
-            Material redMaterial, Material whiteMaterial, Material greenMaterial, Material yellowMaterial)
+        public bool[,,] World { get; private set; }
+        private bool[,,] WorkingWorld { get; set; }
+
+        public int XSize { get { return World.GetLength(0); } }
+        public int YSize { get { return World.GetLength(1); } }
+        public int ZSize { get { return World.GetLength(2); } }
+
+
+        public GameOfLife(int XSize, int YSize, int ZSize, uint cacheSize, Material material)
         {
-            worlds = new bool[3 + cacheSize][,,];
-            Cache = cacheSize;
-            for (int i = 0; i < worlds.Length; i++)
-            {
-                worlds[i] = new bool[XSize, YSize, ZSize];
-            }
+            World = new bool[XSize, YSize, ZSize];
+            WorkingWorld = new bool[XSize, YSize, ZSize];
 
-            m_currentWorldIndex = 2;
-            m_realWorldIndex = 2;
-
-            RedMaterial = redMaterial;
-            WhiteMaterial = whiteMaterial;
-            GreenMaterial = greenMaterial;
-            YellowMaterial = yellowMaterial;
+            Material = material;
 
             InitRenderers();
         }
@@ -73,80 +55,15 @@ namespace Assets.Scripts
 
         public void SetWorld(bool[,,] world)
         {
-            var size = world.GetLength(0);
-            worlds[0] = new bool[size, size, size];
-            worlds[1] = world;
-            worlds[2] = new bool[size, size, size];
-
-            currentWorldIndex = 2;
-            realWorldIndex = 2;
+            World = world;
 
             InitRenderers();
         }
 
-        public bool[,,] GetCurrentWorld(int shift)
-        {
-            return worlds[mod(currentWorldIndex + shift, worlds.Length)];
-        }
-
-        public bool[,,] GetRealWorld(int shift)
-        {
-            return worlds[mod(realWorldIndex + shift, worlds.Length)];
-        }
-
-        public bool AlreadyComputed(int index)
-        {
-            index = mod(index, worlds.Length);
-            if (currentWorldIndex <= realWorldIndex)
-            {
-                return currentWorldIndex <= index && index <= realWorldIndex;
-            }
-            else
-            {
-                return (index <= realWorldIndex) || (currentWorldIndex <= index);
-            }
-        }
-
-        public int GetCacheSize()
-        {
-            if (currentWorldIndex <= realWorldIndex)
-            {
-                return realWorldIndex - currentWorldIndex;
-            }
-            else
-            {
-                return realWorldIndex + worlds.Length - currentWorldIndex;
-            }
-        }
-
-        public void BeginSettingBlocks()
-        {
-            for (int x = 0; x < XSize; x++)
-            {
-                for (int y = 0; y < YSize; y++)
-                {
-                    for (int z = 0; z < ZSize; z++)
-                    {
-                        GetCurrentWorld(-1)[x, y, z] = GetCurrentWorld(-2)[x, y, z];
-                    }
-                }
-            }
-        }
-
         public void SetBlock(int x, int y, int z, bool value)
         {
-            GetCurrentWorld(-1)[x, y, z] = value;
+            World[x, y, z] = value;
         }
-
-        public void ApplyBlocksChanges()
-        {
-            var waitHandles = CalculateNextWorld(GetCurrentWorld(-1), GetCurrentWorld(0));
-            foreach (var w in waitHandles)
-            {
-                w.WaitOne();
-            }
-        }
-
 
         public void Update()
         {
@@ -160,7 +77,9 @@ namespace Assets.Scripts
                 if (ended)
                 {
                     nextInProgress = false;
-                    currentWorldIndex++;
+                    var tmp = World;
+                    World = WorkingWorld;
+                    WorkingWorld = tmp;
                     Log.ComputationTime(computationStopwatch.ElapsedMilliseconds);
                     computationStopwatch.Stop();
                 }
@@ -189,26 +108,6 @@ namespace Assets.Scripts
                 }
             }
 
-            if (cacheInProgress)
-            {
-                bool ended = true;
-                foreach (var w in cacheWaitHandles)
-                {
-                    ended = ended && w.WaitOne(0);
-                }
-                if (ended)
-                {
-                    cacheInProgress = false;
-                    realWorldIndex++;
-                }
-            }
-
-            if (GetCacheSize() < Cache && !nextInProgress && !cacheInProgress && !cubesUpdateInProgress)
-            {
-                cacheWaitHandles = CalculateNextWorld(GetRealWorld(0), GetRealWorld(1));
-                cacheInProgress = true;
-            }
-
             Busy = nextInProgress || cubesUpdateInProgress;
         }
 
@@ -220,17 +119,10 @@ namespace Assets.Scripts
             }
             else
             {
-                if (!AlreadyComputed(currentWorldIndex + 1))
-                {
-                    nextWaitHandles = CalculateNextWorld(GetCurrentWorld(0), GetCurrentWorld(1));
-                    nextInProgress = true;
-                    computationStopwatch = new Stopwatch();
-                    computationStopwatch.Start();
-                }
-                else
-                {
-                    currentWorldIndex++;
-                }
+                nextWaitHandles = CalculateNextWorld();
+                nextInProgress = true;
+                computationStopwatch = new Stopwatch();
+                computationStopwatch.Start();
             }
         }
 
@@ -268,7 +160,7 @@ namespace Assets.Scripts
                             ChunkSize * x, Mathf.Min(XSize, ChunkSize * (x + 1)),
                             ChunkSize * y, Mathf.Min(XSize, ChunkSize * (y + 1)),
                             ChunkSize * z, Mathf.Min(XSize, ChunkSize * (z + 1)),
-                            RedMaterial, WhiteMaterial, GreenMaterial, YellowMaterial);
+                            Material);
                     }
                 }
             }
@@ -282,7 +174,7 @@ namespace Assets.Scripts
             {
                 var x = i;
                 waitHandles[x] = new ManualResetEvent(false);
-                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], GetCurrentWorld(0), GetCurrentWorld(-1), GetCurrentWorld(-2)));
+                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], World));
             }
             return waitHandles;
         }
@@ -295,7 +187,7 @@ namespace Assets.Scripts
             }
         }
 
-        private ManualResetEvent[] CalculateNextWorld(bool[,,] currentWorld, bool[,,] nextWorld)
+        private ManualResetEvent[] CalculateNextWorld()
         {
             var waitHandles = new ManualResetEvent[(XSize / ThreadSize + 1) * (YSize / ThreadSize + 1) * (ZSize / ThreadSize + 1)];
 
@@ -309,11 +201,11 @@ namespace Assets.Scripts
                         var y = j;
                         var z = k;
                         waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)] = new ManualResetEvent(false);
-                        ThreadPool.QueueUserWorkItem(state => Thread(currentWorld, nextWorld,
-                                                                    ThreadSize * x, Mathf.Min(XSize, ThreadSize * (x + 1)),
-                                                                    ThreadSize * y, Mathf.Min(YSize, ThreadSize * (y + 1)),
-                                                                    ThreadSize * z, Mathf.Min(ZSize, ThreadSize * (z + 1)),
-                                                                    waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)]));
+                        ThreadPool.QueueUserWorkItem(state => Thread(World, WorkingWorld,
+                                                                     ThreadSize * x, Mathf.Min(XSize, ThreadSize * (x + 1)),
+                                                                     ThreadSize * y, Mathf.Min(YSize, ThreadSize * (y + 1)),
+                                                                     ThreadSize * z, Mathf.Min(ZSize, ThreadSize * (z + 1)),
+                                                                     waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)]));
                     }
                 }
             }
@@ -321,13 +213,11 @@ namespace Assets.Scripts
         }
 
 
-        private static void Thread(bool[,,] currentWorld, bool[,,] nextWorld,
-            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd,
-            ManualResetEvent waitHandle)
+        private static void Thread(bool[,,] world, bool[,,] workingWorld, int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
         {
-            var xSize = currentWorld.GetLength(0);
-            var ySize = currentWorld.GetLength(1);
-            var zSize = currentWorld.GetLength(2);
+            int xSize = world.GetLength(0);
+            int ySize = world.GetLength(1);
+            int zSize = world.GetLength(2);
             for (int x = xStart; x < xEnd; x++)
             {
                 for (int y = yStart; y < yEnd; y++)
@@ -336,113 +226,113 @@ namespace Assets.Scripts
                     {
                         int neighbors = 0;
                         #region ifs
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y - 1, z - 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y - 1, z])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x - 1, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y - 1, z + 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y, z - 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y, z])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x - 1, y, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y, z + 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x - 1, y + 1, z - 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x - 1, y + 1, z])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x - 1, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x - 1, y + 1, z + 1])
+                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y + 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y - 1, z - 1])
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x, y - 1, z])
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y - 1, z + 1])
+                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y, z - 1])
+                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y, z + 1])
+                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x, y + 1, z - 1])
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x, y + 1, z])
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x, y + 1, z + 1])
+                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y + 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y - 1, z - 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y - 1, z])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x + 1, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y - 1, z + 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y, z - 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y, z])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x + 1, y, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y, z + 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && currentWorld[x + 1, y + 1, z - 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && currentWorld[x + 1, y + 1, z])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x + 1, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && currentWorld[x + 1, y + 1, z + 1])
+                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y + 1, z + 1])
                         {
                             neighbors++;
                         }
                         #endregion
 
-                        nextWorld[x, y, z] = (Y < neighbors && neighbors < Z) || (W < neighbors && neighbors < X && currentWorld[x, y, z]);
+                        workingWorld[x, y, z] = (Y < neighbors && neighbors < Z) || (W < neighbors && neighbors < X && world[x, y, z]);
                     }
                 }
             }
