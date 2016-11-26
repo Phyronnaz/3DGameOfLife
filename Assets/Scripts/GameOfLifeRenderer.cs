@@ -16,6 +16,7 @@ namespace Assets.Scripts
 
         readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
         readonly Mesh mesh;
+        readonly MeshCollider collider;
 
         int[] triangles;
         int[] trianglesCache;
@@ -49,21 +50,29 @@ namespace Assets.Scripts
             var go = new GameObject();
 
             go.name = "GO";
-
             go.transform.SetParent(gameObject.transform, false);
-
             go.AddComponent<MeshRenderer>().material = material;
-
+            collider = go.AddComponent<MeshCollider>();
+            collider.sharedMesh = mesh;
             mesh = go.AddComponent<MeshFilter>().mesh;
-
             mesh.MarkDynamic();
-
             mesh.vertices = vertices;
-
             triangles = new int[36 * XSize * YSize * ZSize];
         }
 
-        public void UpdateTriangles(ManualResetEvent waitHandle, bool[,,] world)
+        public void Quit()
+        {
+            triangles = null;
+            trianglesCache = null;
+        }
+
+        public void UpdateCollisions(bool[,,] world)
+        {
+            mesh.RecalculateNormals();
+            collider.sharedMesh = mesh;
+        }
+
+        public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
         {
             var count = 0;
 
@@ -92,7 +101,10 @@ namespace Assets.Scripts
 
             Array.Copy(triangles, 0, trianglesCache, 0, count);
 
-            waitHandle.Set();
+            if (waitHandle != null)
+            {
+                waitHandle.Set();
+            }
         }
 
         public void UpdateMeshes()

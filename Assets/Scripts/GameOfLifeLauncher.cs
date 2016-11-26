@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Assets.Scripts
 {
@@ -14,6 +16,8 @@ namespace Assets.Scripts
 
         GameOfLife gameOfLife;
 
+        bool editMode = false;
+
         void Start()
         {
             gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, Material);
@@ -23,7 +27,7 @@ namespace Assets.Scripts
                 {
                     for (int z = 0; z < Size; z++)
                     {
-                        gameOfLife.SetBlock(x, y, z, Random.value > 0.7);
+                        gameOfLife.SetBlock(x, y, z, Random.value > 0.99);
                     }
                 }
             }
@@ -37,12 +41,68 @@ namespace Assets.Scripts
             {
                 gameOfLife.Next();
                 gameOfLife.UpdateCubes();
+                if (editMode)
+                {
+                    gameOfLife.UpdateCollisions();
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                editMode = !editMode;
+                if (editMode)
+                {
+                    gameOfLife.UpdateCollisions();
+                }
+            }
+            if (editMode)
+            {
+                EditMode();
             }
         }
 
+        void EditMode()
+        {
+            if (!EventSystem.current.IsPointerOverGameObject())
+            {
+                if (Input.GetMouseButtonDown(0) || (Input.GetMouseButton(0) && Input.GetKey(KeyCode.LeftShift)))
+                {
+                    RaycastHit hit;
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    if (Physics.Raycast(ray, out hit))
+                    {
+                        var v = hit.point + hit.normal / 2;
+                        if (gameOfLife.IsInWorld(v))
+                        {
+                            gameOfLife.SetBlock(v, true);
+                            gameOfLife.UpdateChunk(v);
+                        }
+                    }
+                }
+                else if (Input.GetMouseButtonDown(1) || (Input.GetMouseButton(1) && Input.GetKey(KeyCode.LeftShift)))
+                {
+                    RaycastHit hit;
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    if (Physics.Raycast(ray, out hit))
+                    {
+                        var v = hit.point - hit.normal / 2;
+                        if (gameOfLife.IsInWorld(v))
+                        {
+                            gameOfLife.SetBlock(v, false);
+                            gameOfLife.UpdateChunk(v);
+                        }
+                    }
+                }
+            }
+        }
         void GameOfLifeUpdate()
         {
             gameOfLife.Update();
+        }
+
+        void OnApplicationQuit()
+        {
+            gameOfLife.Quit();
+            gameOfLife = null;
         }
     }
 }

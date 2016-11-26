@@ -14,26 +14,26 @@ namespace Assets.Scripts
         public static event LogDelegate WarningsLog;
         public static event LogDelegate ErrorsLog;
 
-        public static void ComputationTime(long time)
+        public static void LogComputationTime(long time)
         {
             ComputationTimeLog("Computation time: " + time.ToString() + "ms");
         }
-        public static void TrianglesTime(long time)
+        public static void LogTrianglesTime(long time)
         {
             TrianglesTimesLog("Triangles computation time: " + time + "ms");
         }
 
-        public static void Cache(int cache)
+        public static void LogCache(int cache)
         {
             CacheLog("Cache: " + cache.ToString());
         }
 
-        public static void Warning(string s)
+        public static void LogWarning(string s)
         {
             WarningsLog(s);
         }
 
-        public static void Error(string s)
+        public static void LogError(string s)
         {
             ErrorsLog(s);
         }

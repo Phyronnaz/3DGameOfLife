@@ -18,7 +18,7 @@ public class FreeCam : MonoBehaviour
 
     private void OnEnable()
     {
-        Cursor.visible = hideCursor;
+        Cursor.visible = !hideCursor;
     }
 
     private void Update()

@@ -23,9 +23,9 @@ namespace Assets.Scripts
         public bool Busy;
 
         readonly Material Material;
-        GameOfLifeRenderer[] gameOfLifeRenderers;
-        ManualResetEvent[] nextWaitHandles;
-        ManualResetEvent[] cubesWaitHandles;
+        GameOfLifeRenderer[,,] gameOfLifeRenderers;
+        ManualResetEvent[,,] nextWaitHandles;
+        ManualResetEvent[,,] cubesWaitHandles;
         bool cubesUpdateWaiting;
         bool cubesUpdateInProgress;
         bool nextInProgress;
@@ -60,9 +60,72 @@ namespace Assets.Scripts
             InitRenderers();
         }
 
+        public void SetBlock(Vector3 v, bool value)
+        {
+            SetBlock((int)(v.x), (int)(v.y), (int)(v.z), value);
+        }
+
         public void SetBlock(int x, int y, int z, bool value)
         {
-            World[x, y, z] = value;
+            try
+            {
+                World[x, y, z] = value;
+            }
+            catch (IndexOutOfRangeException)
+            {
+                Log.LogError(string.Format("Out of bound: ({0}, {1}, {2})", x, y, z));
+            }
+        }
+
+
+        public bool GetBlock(Vector3 v)
+        {
+            return GetBlock((int)(v.x), (int)(v.y), (int)(v.z));
+        }
+
+        public bool GetBlock(int x, int y, int z)
+        {
+            try
+            {
+                return World[x, y, z];
+            }
+            catch (IndexOutOfRangeException)
+            {
+                Log.LogError(string.Format("Out of bound: (%i, %i, %i)", x, y, z));
+                return false;
+            }
+        }
+
+        public bool IsInWorld(Vector3 v)
+        {
+            return IsInWorld((int)(v.x), (int)(v.y), (int)(v.z));
+        }
+
+        public bool IsInWorld(int x, int y, int z)
+        {
+            return 0 <= x && x < XSize &&
+                   0 <= y && y < YSize &&
+                   0 <= z && z < ZSize;
+        }
+
+        public void UpdateCollisions()
+        {
+            foreach (var renderer in gameOfLifeRenderers)
+            {
+                renderer.UpdateCollisions(World);
+            }
+        }
+
+        public void UpdateChunk(Vector3 v)
+        {
+            UpdateChunk((int)(v.x), (int)(v.y), (int)(v.z));
+        }
+
+        public void UpdateChunk(int x, int y, int z)
+        {
+            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateTriangles(World);
+            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateMeshes();
+            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateCollisions(World);
         }
 
         public void Update()
@@ -80,7 +143,7 @@ namespace Assets.Scripts
                     var tmp = World;
                     World = WorkingWorld;
                     WorkingWorld = tmp;
-                    Log.ComputationTime(computationStopwatch.ElapsedMilliseconds);
+                    Log.LogComputationTime(computationStopwatch.ElapsedMilliseconds);
                     computationStopwatch.Stop();
                 }
             }
@@ -102,7 +165,7 @@ namespace Assets.Scripts
                 if (ended)
                 {
                     cubesUpdateInProgress = false;
-                    Log.TrianglesTime(trianglesStopwatch.ElapsedMilliseconds);
+                    Log.LogTrianglesTime(trianglesStopwatch.ElapsedMilliseconds);
                     trianglesStopwatch.Stop();
                     UpdateMeshes();
                 }
@@ -115,7 +178,7 @@ namespace Assets.Scripts
         {
             if (Busy)
             {
-                Log.Warning("Not able to calculate next: Busy");
+                Log.LogWarning("Not able to calculate next: Busy");
             }
             else
             {
@@ -130,12 +193,22 @@ namespace Assets.Scripts
         {
             if (Busy)
             {
-                Log.Warning("Not able to update cubes: Busy");
+                Log.LogWarning("Not able to update cubes: Busy");
             }
             else
             {
                 cubesUpdateWaiting = true;
             }
+        }
+
+        public void Quit()
+        {
+            foreach (var renderer in gameOfLifeRenderers)
+            {
+                renderer.Quit();
+            }
+            World = null;
+            WorkingWorld = null;
         }
 
 
@@ -149,14 +222,14 @@ namespace Assets.Scripts
                     GameObject.Destroy(g.gameObject);
                 }
             }
-            gameOfLifeRenderers = new GameOfLifeRenderer[(XSize / ChunkSize + 1) * (YSize / ChunkSize + 1) * (ZSize / ChunkSize + 1)];
+            gameOfLifeRenderers = new GameOfLifeRenderer[XSize / ChunkSize + 1, YSize / ChunkSize + 1, ZSize / ChunkSize + 1];
             for (int x = 0; x < XSize / ChunkSize + 1; x++)
             {
                 for (int y = 0; y < YSize / ChunkSize + 1; y++)
                 {
                     for (int z = 0; z < ZSize / ChunkSize + 1; z++)
                     {
-                        gameOfLifeRenderers[x + (XSize / ChunkSize + 1) * (y + (YSize / ChunkSize + 1) * z)] = new GameOfLifeRenderer(
+                        gameOfLifeRenderers[x, y, z] = new GameOfLifeRenderer(
                             ChunkSize * x, Mathf.Min(XSize, ChunkSize * (x + 1)),
                             ChunkSize * y, Mathf.Min(XSize, ChunkSize * (y + 1)),
                             ChunkSize * z, Mathf.Min(XSize, ChunkSize * (z + 1)),
@@ -166,46 +239,54 @@ namespace Assets.Scripts
             }
         }
 
-        private ManualResetEvent[] UpdateTriangles()
+        private ManualResetEvent[,,] UpdateTriangles()
         {
-            var waitHandles = new ManualResetEvent[gameOfLifeRenderers.Length];
+            var waitHandles = new ManualResetEvent[gameOfLifeRenderers.GetLength(0), gameOfLifeRenderers.GetLength(1), gameOfLifeRenderers.GetLength(2)];
 
-            for (int i = 0; i < gameOfLifeRenderers.Length; i++)
+            for (int x = 0; x < XSize / ChunkSize + 1; x++)
             {
-                var x = i;
-                waitHandles[x] = new ManualResetEvent(false);
-                ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[x].UpdateTriangles(waitHandles[x], World));
+                for (int y = 0; y < YSize / ChunkSize + 1; y++)
+                {
+                    for (int z = 0; z < ZSize / ChunkSize + 1; z++)
+                    {
+                        var i = x;
+                        var j = y;
+                        var k = z;
+                        waitHandles[i, j, k] = new ManualResetEvent(false);
+                        ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[i, j, k].UpdateTriangles(World, waitHandles[i, j, k]));
+                    }
+                }
             }
             return waitHandles;
         }
 
         private void UpdateMeshes()
         {
-            for (int i = 0; i < gameOfLifeRenderers.Length; i++)
+            foreach (var renderer in gameOfLifeRenderers)
             {
-                gameOfLifeRenderers[i].UpdateMeshes();
+                renderer.UpdateMeshes();
             }
         }
 
-        private ManualResetEvent[] CalculateNextWorld()
+        private ManualResetEvent[,,] CalculateNextWorld()
         {
-            var waitHandles = new ManualResetEvent[(XSize / ThreadSize + 1) * (YSize / ThreadSize + 1) * (ZSize / ThreadSize + 1)];
+            var waitHandles = new ManualResetEvent[XSize / ThreadSize + 1, YSize / ThreadSize + 1, ZSize / ThreadSize + 1];
 
-            for (int i = 0; i < XSize / ThreadSize + 1; i++)
+            for (int x = 0; x < XSize / ThreadSize + 1; x++)
             {
-                for (int j = 0; j < YSize / ThreadSize + 1; j++)
+                for (int y = 0; y < YSize / ThreadSize + 1; y++)
                 {
-                    for (int k = 0; k < ZSize / ThreadSize + 1; k++)
+                    for (int z = 0; z < ZSize / ThreadSize + 1; z++)
                     {
-                        var x = i;
-                        var y = j;
-                        var z = k;
-                        waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)] = new ManualResetEvent(false);
+                        var i = x;
+                        var j = y;
+                        var k = z;
+                        waitHandles[i, j, k] = new ManualResetEvent(false);
                         ThreadPool.QueueUserWorkItem(state => Thread(World, WorkingWorld,
-                                                                     ThreadSize * x, Mathf.Min(XSize, ThreadSize * (x + 1)),
-                                                                     ThreadSize * y, Mathf.Min(YSize, ThreadSize * (y + 1)),
-                                                                     ThreadSize * z, Mathf.Min(ZSize, ThreadSize * (z + 1)),
-                                                                     waitHandles[x + (XSize / ThreadSize + 1) * (y + (YSize / ThreadSize + 1) * z)]));
+                                                                     ThreadSize * i, Mathf.Min(XSize, ThreadSize * (i + 1)),
+                                                                     ThreadSize * j, Mathf.Min(YSize, ThreadSize * (j + 1)),
+                                                                     ThreadSize * k, Mathf.Min(ZSize, ThreadSize * (k + 1)),
+                                                                     waitHandles[i, j, k]));
                     }
                 }
             }
