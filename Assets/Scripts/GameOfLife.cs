@@ -18,7 +18,7 @@ namespace Assets.Scripts
         //Size of a thread
         public static int ThreadSize = 25;
         //Size of a chunk (<40)
-        public static int ChunkSize = 25;
+        public static int ChunkSize = 39;
 
         public bool Busy;
 
@@ -36,12 +36,12 @@ namespace Assets.Scripts
         public bool[,,] World { get; private set; }
         private bool[,,] WorkingWorld { get; set; }
 
-        public int XSize { get { return World.GetLength(0); } }
-        public int YSize { get { return World.GetLength(1); } }
-        public int ZSize { get { return World.GetLength(2); } }
+        public int XSize { get { return World.GetLength(0) - 2; } }
+        public int YSize { get { return World.GetLength(1) - 2; } }
+        public int ZSize { get { return World.GetLength(2) - 2; } }
 
 
-        public GameOfLife(int XSize, int YSize, int ZSize, uint cacheSize, Material material)
+        public GameOfLife(int XSize, int YSize, int ZSize, Material material)
         {
             World = new bool[XSize, YSize, ZSize];
             WorkingWorld = new bool[XSize, YSize, ZSize];
@@ -108,14 +108,6 @@ namespace Assets.Scripts
                    0 <= z && z < ZSize;
         }
 
-        public void UpdateCollisions()
-        {
-            foreach (var renderer in gameOfLifeRenderers)
-            {
-                renderer.UpdateCollisions(World);
-            }
-        }
-
         public void UpdateChunk(Vector3 v)
         {
             UpdateChunk((int)(v.x), (int)(v.y), (int)(v.z));
@@ -125,7 +117,6 @@ namespace Assets.Scripts
         {
             gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateTriangles(World);
             gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateMeshes();
-            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateCollisions(World);
         }
 
         public void Update()
@@ -230,9 +221,9 @@ namespace Assets.Scripts
                     for (int z = 0; z < ZSize / ChunkSize + 1; z++)
                     {
                         gameOfLifeRenderers[x, y, z] = new GameOfLifeRenderer(
-                            ChunkSize * x, Mathf.Min(XSize, ChunkSize * (x + 1)),
-                            ChunkSize * y, Mathf.Min(XSize, ChunkSize * (y + 1)),
-                            ChunkSize * z, Mathf.Min(XSize, ChunkSize * (z + 1)),
+                            ChunkSize * x + 1, Mathf.Min(XSize, ChunkSize * (x + 1)) + 1,
+                            ChunkSize * y + 1, Mathf.Min(XSize, ChunkSize * (y + 1)) + 1,
+                            ChunkSize * z + 1, Mathf.Min(XSize, ChunkSize * (z + 1)) + 1,
                             Material);
                     }
                 }
@@ -283,9 +274,9 @@ namespace Assets.Scripts
                         var k = z;
                         waitHandles[i, j, k] = new ManualResetEvent(false);
                         ThreadPool.QueueUserWorkItem(state => Thread(World, WorkingWorld,
-                                                                     ThreadSize * i, Mathf.Min(XSize, ThreadSize * (i + 1)),
-                                                                     ThreadSize * j, Mathf.Min(YSize, ThreadSize * (j + 1)),
-                                                                     ThreadSize * k, Mathf.Min(ZSize, ThreadSize * (k + 1)),
+                                                                     ThreadSize * i + 1, Mathf.Min(XSize, ThreadSize * (i + 1)) + 1,
+                                                                     ThreadSize * j + 1, Mathf.Min(YSize, ThreadSize * (j + 1)) + 1,
+                                                                     ThreadSize * k + 1, Mathf.Min(ZSize, ThreadSize * (k + 1)) + 1,
                                                                      waitHandles[i, j, k]));
                     }
                 }
@@ -307,107 +298,107 @@ namespace Assets.Scripts
                     {
                         int neighbors = 0;
                         #region ifs
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y - 1, z - 1])
+                        if (world[x - 1, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x - 1, y - 1, z])
+                        if (world[x - 1, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y - 1, z + 1])
+                        if (world[x - 1, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y, z - 1])
+                        if (world[x - 1, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x - 1, y, z])
+                        if (world[x - 1, y, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y, z + 1])
+                        if (world[x - 1, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y + 1, z - 1])
+                        if (world[x - 1, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x - 1, y + 1, z])
+                        if (world[x - 1, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x - 1 && x - 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y + 1, z + 1])
+                        if (world[x - 1, y + 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y - 1, z - 1])
+                        if (world[x, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x, y - 1, z])
+                        if (world[x, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y - 1, z + 1])
+                        if (world[x, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y, z - 1])
+                        if (world[x, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y, z + 1])
+                        if (world[x, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y + 1, z - 1])
+                        if (world[x, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x, y + 1, z])
+                        if (world[x, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x && x < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y + 1, z + 1])
+                        if (world[x, y + 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y - 1, z - 1])
+                        if (world[x + 1, y - 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z && z < zSize && world[x + 1, y - 1, z])
+                        if (world[x + 1, y - 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y - 1 && y - 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y - 1, z + 1])
+                        if (world[x + 1, y - 1, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y, z - 1])
+                        if (world[x + 1, y, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x + 1, y, z])
+                        if (world[x + 1, y, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y, z + 1])
+                        if (world[x + 1, y, z + 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y + 1, z - 1])
+                        if (world[x + 1, y + 1, z - 1])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z && z < zSize && world[x + 1, y + 1, z])
+                        if (world[x + 1, y + 1, z])
                         {
                             neighbors++;
                         }
-                        if (0 <= x + 1 && x + 1 < xSize && 0 <= y + 1 && y + 1 < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y + 1, z + 1])
+                        if (world[x + 1, y + 1, z + 1])
                         {
                             neighbors++;
                         }

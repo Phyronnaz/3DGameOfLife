@@ -7,9 +7,7 @@ namespace Assets.Scripts
     public class GameOfLifeLauncher : MonoBehaviour
     {
         public int Size = 10;
-
-        public uint CacheSize = 3;
-
+        
         public Material Material;
 
         public float RefreshRate = 0.5f;
@@ -20,7 +18,7 @@ namespace Assets.Scripts
 
         void Start()
         {
-            gameOfLife = new GameOfLife(Size, Size, Size, CacheSize, Material);
+            gameOfLife = new GameOfLife(Size, Size, Size, Material);
             for (int x = 0; x < Size; x++)
             {
                 for (int y = 0; y < Size; y++)
@@ -41,18 +39,10 @@ namespace Assets.Scripts
             {
                 gameOfLife.Next();
                 gameOfLife.UpdateCubes();
-                if (editMode)
-                {
-                    gameOfLife.UpdateCollisions();
-                }
             }
             if (Input.GetKeyDown(KeyCode.E))
             {
                 editMode = !editMode;
-                if (editMode)
-                {
-                    gameOfLife.UpdateCollisions();
-                }
             }
             if (editMode)
             {

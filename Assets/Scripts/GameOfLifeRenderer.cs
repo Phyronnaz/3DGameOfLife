@@ -66,12 +66,6 @@ namespace Assets.Scripts
             trianglesCache = null;
         }
 
-        public void UpdateCollisions(bool[,,] world)
-        {
-            mesh.RecalculateNormals();
-            collider.sharedMesh = mesh;
-        }
-
         public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
         {
             var count = 0;
@@ -82,15 +76,72 @@ namespace Assets.Scripts
                 {
                     for (int z = 0; z < ZSize; z++)
                     {
-                        var b = world[x + XStart, y + YStart, z + ZStart];
-                        for (int i = 0; i < CubeTriangles.Length / 3; i++)
+                        int i = x + XStart;
+                        int j = y + YStart;
+                        int k = z + ZStart;
+                        if (world[i, j, k])
                         {
-                            var verticesIndex = x + CubeTriangles[3 * i] + (XSize + 1) * (y + CubeTriangles[3 * i + 1] + (YSize + 1) * (z + CubeTriangles[3 * i + 2]));
-
-                            if (b)
+                            if (!world[i, j + 1, k])
                             {
-                                triangles[count] = verticesIndex;
-                                count++;
+                                for (int a = 0; a < CubeUp.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeUp[3 * a] + (XSize + 1) * (y + CubeUp[3 * a + 1] + (YSize + 1) * (z + CubeUp[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
+                            }
+
+                            if (!world[i, j - 1, k])
+                            {
+                                for (int a = 0; a < CubeDown.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeDown[3 * a] + (XSize + 1) * (y + CubeDown[3 * a + 1] + (YSize + 1) * (z + CubeDown[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
+                            }
+
+
+                            if (!world[i, j, k + 1])
+                            {
+                                for (int a = 0; a < CubeNorth.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeNorth[3 * a] + (XSize + 1) * (y + CubeNorth[3 * a + 1] + (YSize + 1) * (z + CubeNorth[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
+                            }
+
+                            if (!world[i, j, k - 1])
+                            {
+                                for (int a = 0; a < CubeSouth.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeSouth[3 * a] + (XSize + 1) * (y + CubeSouth[3 * a + 1] + (YSize + 1) * (z + CubeSouth[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
+                            }
+
+
+                            if (!world[i + 1, j, k])
+                            {
+                                for (int a = 0; a < CubeEast.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeEast[3 * a] + (XSize + 1) * (y + CubeEast[3 * a + 1] + (YSize + 1) * (z + CubeEast[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
+                            }
+
+
+                            if (!world[i - 1, j, k])
+                            {
+                                for (int a = 0; a < CubeWest.Length / 3; a++)
+                                {
+                                    var verticesIndex = x + CubeWest[3 * a] + (XSize + 1) * (y + CubeWest[3 * a + 1] + (YSize + 1) * (z + CubeWest[3 * a + 2]));
+                                    triangles[count] = verticesIndex;
+                                    count++;
+                                }
                             }
                         }
                     }
@@ -110,48 +161,58 @@ namespace Assets.Scripts
         public void UpdateMeshes()
         {
             mesh.SetTriangles(trianglesCache, 0, false);
-
+            mesh.RecalculateNormals();
             mesh.UploadMeshData(false);
+            collider.sharedMesh = mesh;
         }
 
+        public static int[] CubeUp = new int[] { 0, 1, 1,
+                                                 1, 1, 1,
+                                                 1, 1, 0,
 
-        public static readonly int[] CubeTriangles = new int[]{
-                                                            0,0,0,
-                                                            0,0,1,
-                                                            0,1,1,
-                                                            1,1,0,
-                                                            0,0,0,
-                                                            0,1,0,
-                                                            1,0,1,
-                                                            0,0,0,
-                                                            1,0,0,
-                                                            1,1,0,
-                                                            1,0,0,
-                                                            0,0,0,
-                                                            0,0,0,
-                                                            0,1,1,
-                                                            0,1,0,
-                                                            1,0,1,
-                                                            0,0,1,
-                                                            0,0,0,
-                                                            0,1,1,
-                                                            0,0,1,
-                                                            1,0,1,
-                                                            1,1,1,
-                                                            1,0,0,
-                                                            1,1,0,
-                                                            1,0,0,
-                                                            1,1,1,
-                                                            1,0,1,
-                                                            1,1,1,
-                                                            1,1,0,
-                                                            0,1,0,
-                                                            1,1,1,
-                                                            0,1,0,
-                                                            0,1,1,
-                                                            1,1,1,
-                                                            0,1,1,
-                                                            1,0,1
-        };
+                                                 0, 1, 1,
+                                                 1, 1, 0,
+                                                 0, 1, 0};
+
+        public static int[] CubeDown = new int[] { 0, 0, 0,
+                                                   1, 0, 0,
+                                                   1, 0, 1,
+
+                                                   0, 0, 0,
+                                                   1, 0, 1,
+                                                   0, 0, 1};
+
+        public static int[] CubeNorth = new int[] { 1, 0, 1,
+                                                    1, 1, 1,
+                                                    0, 1, 1,
+
+                                                    1, 0, 1,
+                                                    0, 1, 1,
+                                                    0, 0, 1};
+
+        public static int[] CubeEast = new int[] { 1, 0, 0,
+                                                   1, 1, 0,
+                                                   1, 1, 1,
+
+                                                   1, 0, 0,
+                                                   1, 1, 1,
+                                                   1, 0, 1};
+
+
+        public static int[] CubeSouth = new int[] { 0, 0, 0,
+                                                    0, 1, 0,
+                                                    1, 1, 0,
+
+                                                    0, 0, 0,
+                                                    1, 1, 0,
+                                                    1, 0, 0};
+
+        public static int[] CubeWest = new int[] { 0, 0, 1,
+                                                   0, 1, 1,
+                                                   0, 1, 0,
+
+                                                   0, 0, 1,
+                                                   0, 1, 0,
+                                                   0, 0, 0};
     }
 }
