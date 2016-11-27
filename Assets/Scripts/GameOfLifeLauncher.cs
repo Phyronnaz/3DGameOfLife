@@ -7,20 +7,32 @@ namespace Assets.Scripts
 {
     public class GameOfLifeLauncher : MonoBehaviour
     {
-        public Material Material;
+        public static bool ConstantUpdate;
 
+        public Material Material;
 
         GameOfLife gameOfLife;
 
         void Start()
         {
-            gameOfLife = new GameOfLife(50, 50, 50, Material);
-            gameOfLife.Randomize(0.01f);
-            gameOfLife.UpdateCubes();
+#if UNITY_EDITOR
+            Profiler.maxNumberOfSamplesPerFrame = 8000000;
+#endif
+            GameOfLifeTools.InitProperties();
+            gameOfLife = new GameOfLife(50, Material);
+            GameOfLifeTools.Randomize(0.01f);
         }
 
         void Update()
         {
+            if (ConstantUpdate)
+            {
+                if (gameOfLife.CubesUpdateInProgress)
+                {
+                    gameOfLife.ScheduleNext();
+                }
+                gameOfLife.ScheduleCubesUpdate();
+            }
             gameOfLife.Update();
         }
 

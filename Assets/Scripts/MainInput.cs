@@ -6,9 +6,6 @@ namespace Assets.Scripts
 {
     public class MainInput : MonoBehaviour
     {
-        GameOfLife GOL { get { return GameOfLife.GOL; } }
-
-
         void Update()
         {
             if (GameOfLife.EditMode)
@@ -17,13 +14,13 @@ namespace Assets.Scripts
             }
             if (Input.GetKeyDown(KeyCode.Return))
             {
-                GOL.Next();
-                GOL.UpdateCubes();
+                GameOfLife.GOL.ScheduleNext();
+                GameOfLife.GOL.ScheduleCubesUpdate();
             }
             else if (Input.GetKeyDown(KeyCode.U))
             {
-                GOL.MarkAllForUpdate();
-                GOL.UpdateCubes();
+                GameOfLife.GOL.MarkAllForUpdate();
+                GameOfLife.GOL.ScheduleCubesUpdate();
             }
         }
 
@@ -37,11 +34,14 @@ namespace Assets.Scripts
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                     if (Physics.Raycast(ray, out hit, 1000000))
                     {
-                        var u = hit.point + hit.normal / 1.5f;
-                        if (GOL.IsInWorld(u))
+                        var v = hit.point + hit.normal / 1.5f;
+                        var x = Mathf.RoundToInt(v.x);
+                        var y = Mathf.RoundToInt(v.y);
+                        var z = Mathf.RoundToInt(v.z);
+                        if (GameOfLife.GOL.IsInWorld(x, y, z))
                         {
-                            GOL.SetBlock(u, true);
-                            GOL.UpdateChunk(u);
+                            GameOfLife.GOL.SetBlock(x, y, z, true);
+                            GameOfLife.GOL.UpdateChunk(x, y, z);
                         }
                         else
                         {
@@ -56,10 +56,13 @@ namespace Assets.Scripts
                     if (Physics.Raycast(ray, out hit))
                     {
                         var v = hit.point - hit.normal / 1.5f;
-                        if (GOL.IsInWorld(v))
+                        var x = Mathf.RoundToInt(v.x);
+                        var y = Mathf.RoundToInt(v.y);
+                        var z = Mathf.RoundToInt(v.z);
+                        if (GameOfLife.GOL.IsInWorld(x, y, z))
                         {
-                            GOL.SetBlock(v, false);
-                            GOL.UpdateChunk(v);
+                            GameOfLife.GOL.SetBlock(x, y, z, false);
+                            GameOfLife.GOL.UpdateChunk(x, y, z);
                         }
                     }
                 }

@@ -17,7 +17,7 @@ namespace Assets.Scripts
         readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
         readonly Mesh mesh;
         readonly MeshCollider collider;
-        
+
         int[] trianglesCache;
 
 
@@ -43,8 +43,8 @@ namespace Assets.Scripts
                     for (int z = 0; z < ZSize + 1; z++)
                     {
                         vertices[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector3(x - 0.5f, y - 0.5f, z - 0.5f);
-                        var i = (XStart + x) * 1f / (GameOfLife.GOL.XSize + 1) * 0.8f + 0.1f;
-                        var j = (YStart + y) * 1f / (GameOfLife.GOL.YSize + 1) * 0.8f + 0.1f;
+                        var i = (XStart + x) * 1f / (GameOfLife.GOL.Size + 1) * 0.8f + 0.1f;
+                        var j = (YStart + y) * 1f / (GameOfLife.GOL.Size + 1) * 0.8f + 0.1f;
                         uv[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector2(i, j);
                     }
                 }
@@ -66,6 +66,7 @@ namespace Assets.Scripts
         public void Quit()
         {
             trianglesCache = null;
+            UnityEngine.Object.Destroy(gameObject);
         }
 
         public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
@@ -103,16 +104,16 @@ namespace Assets.Scripts
             }
         }
 
-        public void UpdateMeshes()
+        public void UpdateMesh()
         {
             mesh.SetTriangles(trianglesCache, 0, false);
-            if (GameOfLife.EditMode)
-            {
-                mesh.RecalculateNormals();
-                collider.sharedMesh = mesh;
-            }
             mesh.UploadMeshData(false);
-            trianglesCache = null;
+        }
+
+        public void UpdateCollisions()
+        {
+            mesh.RecalculateNormals();
+            collider.sharedMesh = mesh;
         }
 
 

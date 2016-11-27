@@ -30,14 +30,6 @@ namespace Assets.Scripts
 #endif
         }
 
-        public void SetActive(bool active)
-        {
-            ComputationTimeText.enabled = active;
-            TrianglesTimeText.enabled = active;
-            WarningText.enabled = active;
-            ErrorText.enabled = active;
-        }
-
         void ComputationTimeLog(string s)
         {
             ComputationTimeText.text = s;
