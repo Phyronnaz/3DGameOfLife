@@ -25,13 +25,16 @@ namespace Assets.Scripts
         public InputField SizeField;
         public Button ChangeSizeButton;
 
+        public Toggle VSyncToggle;
         public Toggle DebugToggle;
         public Toggle Use3DToggle;
-
-        public Toggle ConstantUpdateToggle;
         public Toggle EditModeToggle;
+        public Toggle ConstantUpdateToggle;
 
-        GameOfLife GOL { get { return GameOfLife.GOL; } }
+        public Slider UpdateTimeSlider;
+        public Text UpdateTimeText;
+
+        public Image WorkingImage;
 
         void Start()
         {
@@ -71,13 +74,22 @@ namespace Assets.Scripts
             ChunkSizeField.onEndEdit.Invoke("");
             ThreadSizeField.onEndEdit.Invoke("");
 
-            SizeField.text = GOL.Size.ToString();
+            SizeField.text = GameOfLife.GOL.Size.ToString();
             ChangeSizeButton.onClick.AddListener(() => GameOfLifeTools.SetSize(int.Parse(SizeField.text)));
 
+            VSyncToggle.onValueChanged.AddListener(b => QualitySettings.vSyncCount = b ? 1 : 0);
             DebugToggle.onValueChanged.AddListener(b => Log.Enabled = b);
             Use3DToggle.onValueChanged.AddListener(b => GameOfLife.Use3D = b);
-            ConstantUpdateToggle.onValueChanged.AddListener(b => GameOfLifeLauncher.ConstantUpdate = b);
             EditModeToggle.onValueChanged.AddListener(b => GameOfLifeTools.SetEditMode(b));
+            ConstantUpdateToggle.onValueChanged.AddListener(b => GameOfLifeHandler.ConstantUpdate = b);
+
+            UpdateTimeSlider.onValueChanged.AddListener(f =>
+            {
+                UpdateTimeText.text = string.Format("Update time: {0}", UpdateTimeSlider.value + 0.0001f).Substring(0, 17) + "s";
+                GameOfLifeHandler.UpdateTime = UpdateTimeSlider.value;
+            });
+
+            GameOfLifeHandler.WorkingImage = WorkingImage;
         }
     }
 }

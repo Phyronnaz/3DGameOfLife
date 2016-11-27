@@ -5,15 +5,18 @@ using System.Threading;
 
 namespace Assets.Scripts
 {
-    public class GameOfLifeLauncher : MonoBehaviour
+    public class GameOfLifeHandler : MonoBehaviour
     {
         public static bool ConstantUpdate;
+        public static float UpdateTime = 1000;
+        public static Image WorkingImage;
 
         public Material Material;
 
         GameOfLife gameOfLife;
+        float lastRefreshTime;
 
-        void Start()
+        void Awake()
         {
 #if UNITY_EDITOR
             Profiler.maxNumberOfSamplesPerFrame = 8000000;
@@ -25,15 +28,15 @@ namespace Assets.Scripts
 
         void Update()
         {
-            if (ConstantUpdate)
+            if (ConstantUpdate && Time.time - lastRefreshTime > UpdateTime)
             {
-                if (gameOfLife.CubesUpdateInProgress)
-                {
-                    gameOfLife.ScheduleNext();
-                }
+                lastRefreshTime = Time.time;
+                gameOfLife.ScheduleNext();
                 gameOfLife.ScheduleCubesUpdate();
             }
             gameOfLife.Update();
+
+            WorkingImage.color = gameOfLife.Working ? Color.red : Color.green;
         }
 
         void OnApplicationQuit()

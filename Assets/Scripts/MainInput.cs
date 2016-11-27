@@ -6,6 +6,8 @@ namespace Assets.Scripts
 {
     public class MainInput : MonoBehaviour
     {
+        public GameObject Canvas;
+
         void Update()
         {
             if (GameOfLife.EditMode)
@@ -21,6 +23,10 @@ namespace Assets.Scripts
             {
                 GameOfLife.GOL.MarkAllForUpdate();
                 GameOfLife.GOL.ScheduleCubesUpdate();
+            }
+            else if (Input.GetKeyDown(KeyCode.H))
+            {
+                Canvas.SetActive(!Canvas.activeSelf);
             }
         }
 

@@ -25,6 +25,8 @@ namespace Assets.Scripts
         private bool[,,] DirtyChunks;
         private GameOfLifeRenderer[,,] gameOfLifeRenderers;
         private ManualResetEvent[,,] waitHandles;
+        private ulong cubeUpdatePendingIndex;
+        private ulong nextPendingIndex;
 
         public static GameOfLife GOL { get; private set; }
 
@@ -118,12 +120,20 @@ namespace Assets.Scripts
 
         public void ScheduleNext()
         {
-            NextPending = true;
+            if (!NextPending)
+            {
+                NextPending = true;
+                nextPendingIndex = cubeUpdatePendingIndex + 1;
+            }
         }
 
         public void ScheduleCubesUpdate()
         {
-            CubesUpdatePending = true;
+            if (!CubesUpdatePending)
+            {
+                CubesUpdatePending = true;
+                cubeUpdatePendingIndex = nextPendingIndex + 1;
+            }
         }
 
         public void Update()
@@ -149,11 +159,11 @@ namespace Assets.Scripts
             }
             if (!Working)
             {
-                if (NextPending)
+                if (NextPending && (!CubesUpdatePending || nextPendingIndex < cubeUpdatePendingIndex))
                 {
                     StartNext();
                 }
-                else if (CubesUpdatePending)
+                else if (CubesUpdatePending && (!NextPending || cubeUpdatePendingIndex < nextPendingIndex))
                 {
                     StartCubesUpdate();
                 }
