@@ -9,6 +9,7 @@
 * Possibility to use Z axis as a trail for 2D Game Of Life
 * Save/load worlds
 * Edit mode similar to minecraft
+* Updating only chunks that have changed
 
 ## Issues
 * Memory leak in C#: main arrays are not destroyed when changing size, so memory is never freed
