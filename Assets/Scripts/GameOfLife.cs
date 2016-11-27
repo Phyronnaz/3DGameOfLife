@@ -9,18 +9,22 @@ namespace Assets.Scripts
 {
     public class GameOfLife
     {
-        //Stay alive
-        public static int W = 1;
-        public static int X = 4;
-        //Became alive
-        public static int Y = 2;
-        public static int Z = 3;
-        //Size of a thread
-        public static int ThreadSize = 25;
-        //Size of a chunk (<40)
-        public static int ChunkSize = 25;
+
+        public static bool EditMode;
+        public static bool Use3D = true;
 
         public bool Busy;
+        public bool ConstantUpdate;
+
+        //Stay alive
+        static int m_W = 2;
+        static int m_X = 3;
+        //Became alive
+        static int m_Y = 3;
+        static int m_Z = 3;
+
+        static int m_ThreadSize;
+        static int m_ChunkSize;
 
         readonly Material Material;
         GameOfLifeRenderer[,,] gameOfLifeRenderers;
@@ -35,8 +39,17 @@ namespace Assets.Scripts
 
         public static GameOfLife GOL { get; private set; }
 
+        public static int W { get { m_W = PlayerPrefs.GetInt("W", 3); return m_W; } set { PlayerPrefs.SetInt("W", value); m_W = value; } }
+        public static int X { get { m_X = PlayerPrefs.GetInt("X", 3); return m_X; } set { PlayerPrefs.SetInt("X", value); m_X = value; } }
+        public static int Y { get { m_Y = PlayerPrefs.GetInt("Y", 3); return m_Y; } set { PlayerPrefs.SetInt("Y", value); m_Y = value; } }
+        public static int Z { get { m_Z = PlayerPrefs.GetInt("Z", 3); return m_Z; } set { PlayerPrefs.SetInt("Z", value); m_Z = value; } }
+
+        public static int ThreadSize { get { m_ThreadSize = PlayerPrefs.GetInt("ThreadSize", 20); return m_ThreadSize; } set { PlayerPrefs.SetInt("ThreadSize", value); m_ThreadSize = value; } }
+        public static int ChunkSize { get { m_ChunkSize = PlayerPrefs.GetInt("ChunkSize", 39); return m_ChunkSize; } set { var v = Mathf.Min(39, value); PlayerPrefs.SetInt("ChunkSize", v); m_ChunkSize = v; } }
+
         public bool[,,] World { get; private set; }
         private bool[,,] WorkingWorld { get; set; }
+        private bool[,,] NeedUpdate { get; set; }
 
         public int XSize { get { return World.GetLength(0); } }
         public int YSize { get { return World.GetLength(1); } }
@@ -47,6 +60,7 @@ namespace Assets.Scripts
         {
             World = new bool[XSize, YSize, ZSize];
             WorkingWorld = new bool[XSize, YSize, ZSize];
+            NeedUpdate = new bool[XSize / ChunkSize + 1, YSize / ChunkSize + 1, ZSize / ChunkSize + 1];
 
             GOL = this;
 
@@ -56,10 +70,51 @@ namespace Assets.Scripts
         }
 
 
+        public void SetSize(int size)
+        {
+            if (size != XSize && !Busy)
+            {
+                var new_world = new bool[size, size, size];
+                if (size < XSize)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        for (int y = 0; y < size; y++)
+                        {
+                            for (int z = 0; z < size; z++)
+                            {
+                                new_world[x, y, z] = World[x, y, z];
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    for (int x = 0; x < XSize; x++)
+                    {
+                        for (int y = 0; y < YSize; y++)
+                        {
+                            for (int z = 0; z < ZSize; z++)
+                            {
+                                new_world[x + (size - XSize) / 2, y + (size - YSize) / 2, z + (size - ZSize) / 2] = World[x, y, z];
+                            }
+                        }
+                    }
+                }
+
+                World = new_world;
+                WorkingWorld = new bool[size, size, size];
+                NeedUpdate = new bool[XSize / m_ChunkSize + 1, YSize / m_ChunkSize + 1, ZSize / m_ChunkSize + 1];
+
+                InitRenderers();
+            }
+        }
 
         public void SetWorld(bool[,,] world)
         {
             World = world;
+            WorkingWorld = new bool[XSize, YSize, ZSize];
+            NeedUpdate = new bool[XSize / m_ChunkSize + 1, YSize / m_ChunkSize + 1, ZSize / m_ChunkSize + 1];
 
             InitRenderers();
         }
@@ -71,16 +126,18 @@ namespace Assets.Scripts
 
         public void SetBlock(int x, int y, int z, bool value)
         {
-            try
+            if (!Busy)
             {
-                World[x, y, z] = value;
-            }
-            catch (IndexOutOfRangeException)
-            {
-                Log.LogError(string.Format("Out of bound: ({0}, {1}, {2})", x, y, z));
+                try
+                {
+                    World[x, y, z] = value;
+                }
+                catch (IndexOutOfRangeException)
+                {
+                    Log.LogError(string.Format("Out of bound: ({0}, {1}, {2})", x, y, z));
+                }
             }
         }
-
 
         public bool GetBlock(Vector3 v)
         {
@@ -119,8 +176,25 @@ namespace Assets.Scripts
 
         public void UpdateChunk(int x, int y, int z)
         {
-            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateTriangles(World);
-            gameOfLifeRenderers[x / ChunkSize, y / ChunkSize, z / ChunkSize].UpdateMeshes();
+            if (!Busy)
+            {
+                gameOfLifeRenderers[x / m_ChunkSize, y / m_ChunkSize, z / m_ChunkSize].UpdateTriangles(World);
+                gameOfLifeRenderers[x / m_ChunkSize, y / m_ChunkSize, z / m_ChunkSize].UpdateMeshes();
+            }
+        }
+
+        public void MarkAllForUpdate()
+        {
+            for (int x = 0; x < XSize / m_ChunkSize + 1; x++)
+            {
+                for (int y = 0; y < YSize / m_ChunkSize + 1; y++)
+                {
+                    for (int z = 0; z < ZSize / m_ChunkSize + 1; z++)
+                    {
+                        NeedUpdate[x, y, z] = true;
+                    }
+                }
+            }
         }
 
         public void Randomize(float density)
@@ -135,6 +209,7 @@ namespace Assets.Scripts
                     }
                 }
             }
+            MarkAllForUpdate();
         }
 
         public void Reset()
@@ -149,6 +224,7 @@ namespace Assets.Scripts
                     }
                 }
             }
+            MarkAllForUpdate();
         }
 
         public void Update()
@@ -195,6 +271,11 @@ namespace Assets.Scripts
             }
 
             Busy = nextInProgress || cubesUpdateInProgress;
+            if (!Busy && ConstantUpdate)
+            {
+                Next();
+                UpdateCubes();
+            }
         }
 
         public void Next()
@@ -242,20 +323,20 @@ namespace Assets.Scripts
             {
                 foreach (var g in gameOfLifeRenderers)
                 {
-                    GameObject.Destroy(g.gameObject);
+                    UnityEngine.Object.Destroy(g.gameObject);
                 }
             }
-            gameOfLifeRenderers = new GameOfLifeRenderer[XSize / ChunkSize + 1, YSize / ChunkSize + 1, ZSize / ChunkSize + 1];
-            for (int x = 0; x < XSize / ChunkSize + 1; x++)
+            gameOfLifeRenderers = new GameOfLifeRenderer[XSize / m_ChunkSize + 1, YSize / m_ChunkSize + 1, ZSize / m_ChunkSize + 1];
+            for (int x = 0; x < XSize / m_ChunkSize + 1; x++)
             {
-                for (int y = 0; y < YSize / ChunkSize + 1; y++)
+                for (int y = 0; y < YSize / m_ChunkSize + 1; y++)
                 {
-                    for (int z = 0; z < ZSize / ChunkSize + 1; z++)
+                    for (int z = 0; z < ZSize / m_ChunkSize + 1; z++)
                     {
                         gameOfLifeRenderers[x, y, z] = new GameOfLifeRenderer(
-                            ChunkSize * x, Mathf.Min(XSize, ChunkSize * (x + 1)),
-                            ChunkSize * y, Mathf.Min(XSize, ChunkSize * (y + 1)),
-                            ChunkSize * z, Mathf.Min(XSize, ChunkSize * (z + 1)),
+                            m_ChunkSize * x, Mathf.Min(XSize, m_ChunkSize * (x + 1)),
+                            m_ChunkSize * y, Mathf.Min(XSize, m_ChunkSize * (y + 1)),
+                            m_ChunkSize * z, Mathf.Min(XSize, m_ChunkSize * (z + 1)),
                             Material);
                     }
                 }
@@ -266,17 +347,24 @@ namespace Assets.Scripts
         {
             var waitHandles = new ManualResetEvent[gameOfLifeRenderers.GetLength(0), gameOfLifeRenderers.GetLength(1), gameOfLifeRenderers.GetLength(2)];
 
-            for (int x = 0; x < XSize / ChunkSize + 1; x++)
+            for (int x = 0; x < XSize / m_ChunkSize + 1; x++)
             {
-                for (int y = 0; y < YSize / ChunkSize + 1; y++)
+                for (int y = 0; y < YSize / m_ChunkSize + 1; y++)
                 {
-                    for (int z = 0; z < ZSize / ChunkSize + 1; z++)
+                    for (int z = 0; z < ZSize / m_ChunkSize + 1; z++)
                     {
                         var i = x;
                         var j = y;
                         var k = z;
-                        waitHandles[i, j, k] = new ManualResetEvent(false);
-                        ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[i, j, k].UpdateTriangles(World, waitHandles[i, j, k]));
+                        if (NeedUpdate[x, y, z])
+                        {
+                            waitHandles[i, j, k] = new ManualResetEvent(false);
+                            ThreadPool.QueueUserWorkItem(state => gameOfLifeRenderers[i, j, k].UpdateTriangles(World, waitHandles[i, j, k]));
+                        }
+                        else
+                        {
+                            waitHandles[i, j, k] = new ManualResetEvent(true);
+                        }
                     }
                 }
             }
@@ -285,31 +373,53 @@ namespace Assets.Scripts
 
         private void UpdateMeshes()
         {
-            foreach (var renderer in gameOfLifeRenderers)
+            for (int x = 0; x < XSize / m_ChunkSize + 1; x++)
             {
-                renderer.UpdateMeshes();
+                for (int y = 0; y < YSize / m_ChunkSize + 1; y++)
+                {
+                    for (int z = 0; z < ZSize / m_ChunkSize + 1; z++)
+                    {
+                        if (NeedUpdate[x, y, z])
+                        {
+                            gameOfLifeRenderers[x, y, z].UpdateMeshes();
+                            NeedUpdate[x, y, z] = false;
+                        }
+                    }
+                }
             }
         }
 
         private ManualResetEvent[,,] CalculateNextWorld()
         {
-            var waitHandles = new ManualResetEvent[XSize / ThreadSize + 1, YSize / ThreadSize + 1, ZSize / ThreadSize + 1];
-
-            for (int x = 0; x < XSize / ThreadSize + 1; x++)
+            var waitHandles = new ManualResetEvent[XSize / m_ThreadSize + 1, YSize / m_ThreadSize + 1, ZSize / m_ThreadSize + 1];
+            var threadSize = m_ThreadSize;
+            var chunkSize = m_ChunkSize;
+            for (int x = 0; x < XSize / m_ThreadSize + 1; x++)
             {
-                for (int y = 0; y < YSize / ThreadSize + 1; y++)
+                for (int y = 0; y < YSize / m_ThreadSize + 1; y++)
                 {
-                    for (int z = 0; z < ZSize / ThreadSize + 1; z++)
+                    for (int z = 0; z < ZSize / m_ThreadSize + 1; z++)
                     {
                         var i = x;
                         var j = y;
                         var k = z;
                         waitHandles[i, j, k] = new ManualResetEvent(false);
-                        ThreadPool.QueueUserWorkItem(state => Thread(World, WorkingWorld,
-                                                                     ThreadSize * i, Mathf.Min(XSize, ThreadSize * (i + 1)),
-                                                                     ThreadSize * j, Mathf.Min(YSize, ThreadSize * (j + 1)),
-                                                                     ThreadSize * k, Mathf.Min(ZSize, ThreadSize * (k + 1)),
-                                                                     waitHandles[i, j, k]));
+                        if (Use3D)
+                        {
+                            ThreadPool.QueueUserWorkItem(state => Thread3D(World, WorkingWorld, NeedUpdate, chunkSize,
+                                                                         threadSize * i, Mathf.Min(XSize, threadSize * (i + 1)),
+                                                                         threadSize * j, Mathf.Min(YSize, threadSize * (j + 1)),
+                                                                         threadSize * k, Mathf.Min(ZSize, threadSize * (k + 1)),
+                                                                         waitHandles[i, j, k]));
+                        }
+                        else
+                        {
+                            ThreadPool.QueueUserWorkItem(state => Thread2D(World, WorkingWorld, NeedUpdate, chunkSize,
+                                                                         threadSize * i, Mathf.Min(XSize, threadSize * (i + 1)),
+                                                                         threadSize * j, Mathf.Min(YSize, threadSize * (j + 1)),
+                                                                         threadSize * k, Mathf.Min(ZSize, threadSize * (k + 1)),
+                                                                         waitHandles[i, j, k]));
+                        }
                     }
                 }
             }
@@ -317,11 +427,13 @@ namespace Assets.Scripts
         }
 
 
-        private static void Thread(bool[,,] world, bool[,,] workingWorld, int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
+        private static void Thread3D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
+                                     int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
         {
             int xSize = world.GetLength(0);
             int ySize = world.GetLength(1);
             int zSize = world.GetLength(2);
+
             for (int x = xStart; x < xEnd; x++)
             {
                 for (int y = yStart; y < yEnd; y++)
@@ -436,7 +548,76 @@ namespace Assets.Scripts
                         }
                         #endregion
 
-                        workingWorld[x, y, z] = (Y < neighbors && neighbors < Z) || (W < neighbors && neighbors < X && world[x, y, z]);
+                        workingWorld[x, y, z] = (m_Y <= neighbors && neighbors <= m_Z) || (m_W <= neighbors && neighbors <= m_X && world[x, y, z]);
+
+                        if (world[x, y, z] != workingWorld[x, y, z])
+                        {
+                            needUpdate[x / chunkSize, y / chunkSize, z / chunkSize] = true;
+                        }
+                    }
+                }
+            }
+            waitHandle.Set();
+        }
+
+        private static void Thread2D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
+                                     int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
+        {
+            int xSize = world.GetLength(0);
+            int ySize = world.GetLength(1);
+            int zSize = world.GetLength(2);
+            for (int x = xStart; x < xEnd; x++)
+            {
+                for (int y = yStart; y < yEnd; y++)
+                {
+                    for (int z = zStart; z < zEnd; z++)
+                    {
+                        if (y == ySize - 1)
+                        {
+                            int neighbors = 0;
+                            if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x - 1, y, z - 1])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x - 1, y, z])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x - 1 && x - 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x - 1, y, z + 1])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x + 1, y, z - 1])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z && z < zSize && world[x + 1, y, z])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x + 1 && x + 1 < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x + 1, y, z + 1])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z - 1 && z - 1 < zSize && world[x, y, z - 1])
+                            {
+                                neighbors++;
+                            }
+                            if (0 <= x && x < xSize && 0 <= y && y < ySize && 0 <= z + 1 && z + 1 < zSize && world[x, y, z + 1])
+                            {
+                                neighbors++;
+                            }
+
+                            workingWorld[x, y, z] = (m_Y <= neighbors && neighbors <= m_Z) || (m_W <= neighbors && neighbors <= m_X && world[x, y, z]);
+                        }
+                        else
+                        {
+                            workingWorld[x, y, z] = world[x, y + 1, z];
+                        }
+                        if (world[x, y, z] != workingWorld[x, y, z])
+                        {
+                            needUpdate[x / chunkSize, y / chunkSize, z / chunkSize] = true;
+                        }
                     }
                 }
             }

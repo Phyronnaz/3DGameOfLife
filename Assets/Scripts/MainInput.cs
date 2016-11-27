@@ -11,7 +11,20 @@ namespace Assets.Scripts
 
         void Update()
         {
-            EditUpdate();
+            if (GameOfLife.EditMode)
+            {
+                EditUpdate();
+            }
+            if (Input.GetKeyDown(KeyCode.Return))
+            {
+                GOL.Next();
+                GOL.UpdateCubes();
+            }
+            else if (Input.GetKeyDown(KeyCode.U))
+            {
+                GOL.MarkAllForUpdate();
+                GOL.UpdateCubes();
+            }
         }
 
         void EditUpdate()
@@ -24,7 +37,6 @@ namespace Assets.Scripts
                     Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                     if (Physics.Raycast(ray, out hit, 1000000))
                     {
-
                         var u = hit.point + hit.normal / 1.5f;
                         if (GOL.IsInWorld(u))
                         {
@@ -33,7 +45,7 @@ namespace Assets.Scripts
                         }
                         else
                         {
-                            Log.LogWarning("Edge of the map!");
+                            Log.LogWarning("Out of the map!");
                         }
                     }
                 }

@@ -17,8 +17,7 @@ namespace Assets.Scripts
         readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
         readonly Mesh mesh;
         readonly MeshCollider collider;
-
-        int[] triangles;
+        
         int[] trianglesCache;
 
 
@@ -62,19 +61,17 @@ namespace Assets.Scripts
             mesh.MarkDynamic();
             mesh.vertices = vertices;
             mesh.uv = uv;
-            triangles = new int[36 * XSize * YSize * ZSize];
         }
 
         public void Quit()
         {
-            triangles = null;
             trianglesCache = null;
         }
 
         public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
         {
             var count = 0;
-
+            var triangles = new int[36 * XSize * YSize * ZSize];
             for (int x = 0; x < XSize; x++)
             {
                 for (int y = 0; y < YSize; y++)
@@ -109,9 +106,12 @@ namespace Assets.Scripts
         public void UpdateMeshes()
         {
             mesh.SetTriangles(trianglesCache, 0, false);
-            mesh.RecalculateNormals();
+            if (GameOfLife.EditMode)
+            {
+                mesh.RecalculateNormals();
+                collider.sharedMesh = mesh;
+            }
             mesh.UploadMeshData(false);
-            collider.sharedMesh = mesh;
             trianglesCache = null;
         }
 
