@@ -161,7 +161,7 @@ namespace Assets.Scripts
                         {
                             for (int z = 0; z < size; z++)
                             {
-                                new_world[x, y, z] = GameOfLife.GOL.World[x, y, z];
+                                //new_world[x, y, z] = GameOfLife.GOL.World[x, y, z];
                             }
                         }
                     }

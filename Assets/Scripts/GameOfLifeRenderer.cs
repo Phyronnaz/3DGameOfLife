@@ -56,7 +56,6 @@ namespace Assets.Scripts
             go.transform.SetParent(gameObject.transform, false);
             go.AddComponent<MeshRenderer>().material = material;
             collider = go.AddComponent<MeshCollider>();
-            collider.sharedMesh = mesh;
             mesh = go.AddComponent<MeshFilter>().mesh;
             mesh.MarkDynamic();
             mesh.vertices = vertices;
@@ -65,6 +64,7 @@ namespace Assets.Scripts
 
         public void Quit()
         {
+            mesh.Clear();
             trianglesCache = null;
             UnityEngine.Object.Destroy(gameObject);
         }
@@ -108,6 +108,7 @@ namespace Assets.Scripts
         {
             mesh.SetTriangles(trianglesCache, 0, false);
             mesh.UploadMeshData(false);
+            trianglesCache = null;
         }
 
         public void UpdateCollisions()

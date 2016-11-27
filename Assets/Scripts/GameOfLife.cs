@@ -220,6 +220,18 @@ namespace Assets.Scripts
             Log.LogTrianglesTime(stopwatch.ElapsedMilliseconds);
             stopwatch.Stop();
         }
+
+        private void ClearWaitHandles()
+        {
+            if (waitHandles != null)
+            {
+                foreach (var w in waitHandles)
+                {
+                    w.Close();
+                }
+            }
+        }
+
         private void InitRenderers()
         {
             if (gameOfLifeRenderers != null)
@@ -249,6 +261,7 @@ namespace Assets.Scripts
 
         private void UpdateTriangles()
         {
+            ClearWaitHandles();
             waitHandles = new ManualResetEvent[gameOfLifeRenderers.GetLength(0), gameOfLifeRenderers.GetLength(1), gameOfLifeRenderers.GetLength(2)];
 
             for (int x = 0; x < Size / ChunkSize + 1; x++)
@@ -317,6 +330,7 @@ namespace Assets.Scripts
 
         private void CalculateNextWorld()
         {
+            ClearWaitHandles();
             waitHandles = new ManualResetEvent[Size / ThreadSize + 1, Size / ThreadSize + 1, Size / ThreadSize + 1];
             for (int x = 0; x < Size / ThreadSize + 1; x++)
             {
@@ -352,7 +366,7 @@ namespace Assets.Scripts
 
 
 
-        private static void Thread3D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
+        private void Thread3D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
                                      int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
         {
             int size = world.GetLength(0);
@@ -483,7 +497,7 @@ namespace Assets.Scripts
             waitHandle.Set();
         }
 
-        private static void Thread2D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
+        private void Thread2D(bool[,,] world, bool[,,] workingWorld, bool[,,] needUpdate, int chunkSize,
                                      int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, ManualResetEvent waitHandle)
         {
             int size = world.GetLength(0);

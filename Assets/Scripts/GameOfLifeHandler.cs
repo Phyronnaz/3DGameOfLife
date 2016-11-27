@@ -8,7 +8,7 @@ namespace Assets.Scripts
     public class GameOfLifeHandler : MonoBehaviour
     {
         public static bool ConstantUpdate;
-        public static float UpdateTime = 1000;
+        public static float UpdateTime = 1;
         public static Image WorkingImage;
 
         public Material Material;
