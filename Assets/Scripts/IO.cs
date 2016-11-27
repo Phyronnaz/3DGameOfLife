@@ -99,6 +99,8 @@ namespace Assets.Scripts
                 {
                     var world = LoadFromFile(s);
                     GameOfLife.GOL.SetWorld(world);
+                    GameOfLife.GOL.MarkAllForUpdate();
+                    GameOfLife.GOL.ScheduleCubesUpdate();
                 }
                 catch (Exception ex)
                 {
