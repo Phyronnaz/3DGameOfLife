@@ -25,6 +25,6 @@
 Last build can be downloaded here: https://drive.google.com/open?id=0B0h3CZpUUUCwTzQ4dHY4UHR6V0E
 
 ## Screenshots
-![](/Screenshots/Screenshot%20(66).png?raw=true)
-![](/Screenshots/Screenshot%20(67).png?raw=true)
-![](/Screenshots/gol-optimized.gif?raw=true)
+![](/Screenshots/EditMode.png?raw=true)
+![](/Screenshots/Size.png?raw=true)
+![](/Screenshots/GIF.gif?raw=true)
