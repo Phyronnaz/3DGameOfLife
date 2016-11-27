@@ -19,8 +19,10 @@
 * U: Force update
 * Return: Next iteration
 * Space: Freeze camera
+* Left Shift: allow to hold click in edit mode
 
 ## Download
 Last build can be downloaded here: https://drive.google.com/open?id=0B0h3CZpUUUCwTzQ4dHY4UHR6V0E
 
 ## Screenshots
+[Screenshot](/Screenshots/Screenshot%20(66).png?raw=true "Screenshot")
