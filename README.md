@@ -9,6 +9,7 @@
 * Possibility to use Z axis as a trail for 2D Game Of Life
 * Save/load worlds
 * Edit mode similar to minecraft
+* Updating only chunks that have changed
 
 ## Issues
 * Memory leak in C#: main arrays are not destroyed when changing size, so memory is never freed
@@ -25,6 +26,6 @@
 Last build can be downloaded here: https://drive.google.com/open?id=0B0h3CZpUUUCwTzQ4dHY4UHR6V0E
 
 ## Screenshots
-![](/Screenshots/Screenshot%20(66).png?raw=true)
-![](/Screenshots/Screenshot%20(67).png?raw=true)
-![](/Screenshots/gol-optimized.gif?raw=true)
+![](/Screenshots/EditMode.png?raw=true)
+![](/Screenshots/Size.png?raw=true)
+![](/Screenshots/GIF.gif?raw=true)
