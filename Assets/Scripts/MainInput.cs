@@ -28,6 +28,10 @@ namespace Assets.Scripts
             {
                 Canvas.SetActive(!Canvas.activeSelf);
             }
+            else if (Input.GetKeyDown(KeyCode.F11))
+            {
+                Screen.fullScreen = !Screen.fullScreen;
+            }
         }
 
         void EditUpdate()
