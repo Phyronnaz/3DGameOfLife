@@ -23,7 +23,9 @@ public class FreeCam : MonoBehaviour
 
     private void Update()
     {
-        var deltaPosition = transform.forward * Input.GetAxis("Vertical") + transform.right * Input.GetAxis("Horizontal");
+        Vector3 deltaPosition = Vector3.zero;
+
+        deltaPosition += transform.forward * Input.GetAxis("Vertical") + transform.right * Input.GetAxis("Horizontal");
 
         var currentSpeed = speed;
         if (Input.GetKey(sprintButton))
@@ -36,10 +38,10 @@ public class FreeCam : MonoBehaviour
 
         if (!togglePressed)
         {
-            Vector3 eulerAngles = Vector3.zero;
+            Vector3 eulerAngles = transform.eulerAngles;
             eulerAngles.x += -Input.GetAxis("Mouse Y") * 359f * cursorSensitivity;
             eulerAngles.y += Input.GetAxis("Mouse X") * 359f * cursorSensitivity;
-            transform.Rotate(eulerAngles);
+            transform.eulerAngles = eulerAngles;
         }
 
 
