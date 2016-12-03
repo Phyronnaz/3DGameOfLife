@@ -105,6 +105,7 @@ namespace Assets.Scripts
 
         public static void Randomize(float density)
         {
+            GameOfLifeHandler.ConstantUpdate = false;
             for (int x = 0; x < GameOfLife.GOL.Size; x++)
             {
                 for (int y = 0; y < GameOfLife.GOL.Size; y++)
