@@ -18,14 +18,14 @@ namespace Assets.Scripts
 
         public static void LogComputationTime(long time)
         {
-            if (Enabled)
+            if (Enabled && ComputationTimeLog != null)
             {
                 ComputationTimeLog("Computation time: " + time.ToString() + "ms");
             }
         }
         public static void LogTrianglesTime(long time)
         {
-            if (Enabled)
+            if (Enabled && TrianglesTimesLog != null)
             {
                 TrianglesTimesLog("Triangles computation time: " + time + "ms");
             }
@@ -33,7 +33,7 @@ namespace Assets.Scripts
 
         public static void LogWarning(string s)
         {
-            if (Enabled)
+            if (Enabled && WarningsLog != null)
             {
                 WarningsLog(s);
             }
@@ -41,7 +41,7 @@ namespace Assets.Scripts
 
         public static void LogError(string s)
         {
-            if (Enabled)
+            if (Enabled && ErrorsLog != null)
             {
                 ErrorsLog(s);
             }

@@ -105,7 +105,14 @@ namespace Assets.Scripts
 
         public static void Randomize(float density)
         {
+            if (MainUI.UI != null)
+            {
+                MainUI.UI.ConstantUpdateToggle.isOn = false;
+            }
             GameOfLifeHandler.ConstantUpdate = false;
+            GameOfLife.GOL.CancelPending();
+            GameOfLife.GOL.WaitForThreads();
+            GameOfLife.GOL.Update();
             for (int x = 0; x < GameOfLife.GOL.Size; x++)
             {
                 for (int y = 0; y < GameOfLife.GOL.Size; y++)

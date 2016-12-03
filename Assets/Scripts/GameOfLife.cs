@@ -18,7 +18,8 @@ namespace Assets.Scripts
         public static int ThreadSize;
         public static int ChunkSize;
 
-        private readonly Material Material;
+        public readonly Material Material;
+
         private readonly Stopwatch stopwatch;
         private readonly ManualResetEvent threadsCreated;
         private bool[,,] WorkingWorld;
@@ -134,6 +135,12 @@ namespace Assets.Scripts
                 CubesUpdatePending = true;
                 cubeUpdatePendingIndex = nextPendingIndex + 1;
             }
+        }
+
+        public void CancelPending()
+        {
+            CubesUpdatePending = false;
+            NextPending = false;
         }
 
         public void Update()
@@ -322,9 +329,12 @@ namespace Assets.Scripts
 
         public void WaitForThreads()
         {
-            foreach (var w in waitHandles)
+            if (waitHandles != null)
             {
-                w.WaitOne();
+                foreach (var w in waitHandles)
+                {
+                    w.WaitOne();
+                }
             }
         }
 

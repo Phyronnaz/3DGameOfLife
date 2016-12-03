@@ -36,8 +36,12 @@ namespace Assets.Scripts
 
         public Image WorkingImage;
 
+        public static MainUI UI;
+
         void Start()
         {
+            UI = this;
+
             SaveButton.onClick.AddListener(IO.Save);
             LoadButton.onClick.AddListener(IO.Load);
 
