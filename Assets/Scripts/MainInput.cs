@@ -27,10 +27,15 @@ namespace Assets.Scripts
             else if (Input.GetKeyDown(KeyCode.H))
             {
                 Canvas.SetActive(!Canvas.activeSelf);
+                Cursor.visible = Canvas.activeSelf;
             }
             else if (Input.GetKeyDown(KeyCode.F11))
             {
                 Screen.fullScreen = !Screen.fullScreen;
+            }
+            else if (Input.GetKeyDown(KeyCode.C))
+            {
+                GameOfLifeHandler.ConstantUpdate = !GameOfLifeHandler.ConstantUpdate;
             }
         }
 

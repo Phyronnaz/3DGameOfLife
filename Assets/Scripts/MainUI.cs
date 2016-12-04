@@ -89,8 +89,8 @@ namespace Assets.Scripts
 
             UpdateTimeSlider.onValueChanged.AddListener(f =>
             {
-                UpdateTimeText.text = string.Format("Update time: {0}", UpdateTimeSlider.value + 0.0001f).Substring(0, 17) + "s";
-                GameOfLifeHandler.UpdateTime = UpdateTimeSlider.value;
+                UpdateTimeText.text = string.Format("Update Time: {0}", UpdateTimeSlider.value * 0.05f + 0.0001f).Substring(0, 17) + "s";
+                GameOfLifeHandler.UpdateTime = UpdateTimeSlider.value * 0.05f;
             });
 
             GameOfLifeHandler.WorkingImage = WorkingImage;
