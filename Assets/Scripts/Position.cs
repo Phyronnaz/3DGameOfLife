@@ -19,9 +19,28 @@ namespace Assets.Scripts
             return new Position((int)vector.x, (int)vector.y, (int)vector.z);
         }
 
-        public static implicit operator Vector3(Position vector)
+        public static implicit operator Vector3(Position position)
         {
-            return new Vector3(vector.x, vector.y, vector.z);
+            return new Vector3(position.x, position.y, position.z);
+        }
+
+        public static Position operator *(Position position, int i)
+        {
+            return new Position(position.x * i, position.y * i, position.z * i);
+        }
+
+        public static Position operator *(int i, Position position)
+        {
+            return position * i;
+        }
+
+        public static Position operator /(Position position, int i)
+        {
+            return new Position(position.x / i, position.y / i, position.z / i);
+        }
+        public static Position operator %(Position position, int i)
+        {
+            return new Position(position.x % i, position.y % i, position.z % i);
         }
     }
 }

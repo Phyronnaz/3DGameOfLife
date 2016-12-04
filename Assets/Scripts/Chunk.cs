@@ -7,7 +7,7 @@ namespace Assets.Scripts
     public class Chunk
     {
         bool[,,] blocks;
-        bool dirty;
+        bool isDirty;
         ChunkRenderer chunkRenderer;
         ManualResetEvent waitHandle;
         public bool IsWorking { get { return !waitHandle.WaitOne(0); } }
@@ -22,12 +22,12 @@ namespace Assets.Scripts
 
         public void SetDirty()
         {
-            dirty = true;
+            isDirty = true;
         }
 
         public void UpdateTriangles()
         {
-            if (!IsWorking)
+            if (!IsWorking && isDirty)
             {
                 waitHandle.Reset();
                 chunkRenderer.UpdateTriangles(blocks, waitHandle);
@@ -36,7 +36,11 @@ namespace Assets.Scripts
 
         public void UpdateMesh()
         {
-            chunkRenderer.UpdateMesh();
+            if (isDirty)
+            {
+                chunkRenderer.UpdateMesh();
+                isDirty = false;
+            }
         }
 
         public void UpdateCollisions()
