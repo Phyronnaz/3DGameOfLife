@@ -1,88 +1,63 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Assets.Scripts
 {
-    class GameOfLifeRenderer
+    public class ChunkRenderer
     {
-        public readonly GameObject gameObject;
-
-        public int XSize { get { return XEnd - XStart; } }
-        public int YSize { get { return YEnd - YStart; } }
-        public int ZSize { get { return ZEnd - ZStart; } }
-
-        readonly int XStart, XEnd, YStart, YEnd, ZStart, ZEnd;
+        readonly GameObject gameObject;
         readonly Mesh mesh;
         readonly MeshCollider collider;
+        readonly int size;
 
         int[] trianglesCache;
 
 
-        public GameOfLifeRenderer(
-            int xStart, int xEnd, int yStart, int yEnd, int zStart, int zEnd, Material material)
+        public ChunkRenderer(Vector3 position, int size, Material material)
         {
-            gameObject = new GameObject();
-            gameObject.transform.position = new Vector3(xStart, yStart, zStart);
+            this.size = size;
 
-            XStart = xStart;
-            XEnd = xEnd;
-            YStart = yStart;
-            YEnd = yEnd;
-            ZStart = zStart;
-            ZEnd = zEnd;
-
-            var vertices = new Vector3[(XSize + 1) * (YSize + 1) * (ZSize + 1)];
-            var uv = new Vector2[(XSize + 1) * (YSize + 1) * (ZSize + 1)];
-            for (int x = 0; x < XSize + 1; x++)
+            var vertices = new Vector3[(size + 1) * (size + 1) * (size + 1)];
+            var uv = new Vector2[(size + 1) * (size + 1) * (size + 1)];
+            for (int x = 0; x < size + 1; x++)
             {
-                for (int y = 0; y < YSize + 1; y++)
+                for (int y = 0; y < size + 1; y++)
                 {
-                    for (int z = 0; z < ZSize + 1; z++)
+                    for (int z = 0; z < size + 1; z++)
                     {
-                        vertices[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector3(x - 0.5f, y - 0.5f, z - 0.5f);
-                        var i = (XStart + x) * 1f / (GameOfLife.GOL.Size + 1) * 0.8f + 0.1f;
-                        var j = (YStart + y) * 1f / (GameOfLife.GOL.Size + 1) * 0.8f + 0.1f;
-                        uv[x + (XSize + 1) * (y + (YSize + 1) * z)] = new Vector2(i, j);
+                        vertices[x + (size + 1) * (y + (size + 1) * z)] = new Vector3(x - 0.5f, y - 0.5f, z - 0.5f);
+                        var i = x / size * 0.8f + 0.1f;
+                        var j = y / size * 0.8f + 0.1f;
+                        uv[x + (size + 1) * (y + (size + 1) * z)] = new Vector2(i, j);
                     }
                 }
             }
-
-            var go = new GameObject();
-
-            go.name = "GO";
-            go.transform.SetParent(gameObject.transform, false);
-            go.AddComponent<MeshRenderer>().material = material;
-            collider = go.AddComponent<MeshCollider>();
-            mesh = go.AddComponent<MeshFilter>().mesh;
+            gameObject = new GameObject();
+            gameObject.transform.position = position;
+            gameObject.AddComponent<MeshRenderer>().material = material;
+            collider = gameObject.AddComponent<MeshCollider>();
+            mesh = gameObject.AddComponent<MeshFilter>().mesh;
             mesh.MarkDynamic();
             mesh.vertices = vertices;
             mesh.uv = uv;
         }
 
-        public void Quit()
-        {
-            mesh.Clear();
-            trianglesCache = null;
-            UnityEngine.Object.Destroy(gameObject);
-        }
-
-        public void UpdateTriangles(bool[,,] world, ManualResetEvent waitHandle = null)
+        public void UpdateTriangles(bool[,,] blocks, ManualResetEvent waitHandle = null)
         {
             var count = 0;
-            var triangles = new int[36 * XSize * YSize * ZSize];
-            for (int x = 0; x < XSize; x++)
+            var triangles = new int[36 * size * size * size];
+            for (int x = 0; x < size; x++)
             {
-                for (int y = 0; y < YSize; y++)
+                for (int y = 0; y < size; y++)
                 {
-                    for (int z = 0; z < ZSize; z++)
+                    for (int z = 0; z < size; z++)
                     {
-                        var b = world[x + XStart, y + YStart, z + ZStart];
+                        var b = blocks[x, y, z];
                         for (int i = 0; i < CubeTriangles.Length / 3; i++)
                         {
-                            var verticesIndex = x + CubeTriangles[3 * i] + (XSize + 1) * (y + CubeTriangles[3 * i + 1] + (YSize + 1) * (z + CubeTriangles[3 * i + 2]));
+                            var verticesIndex = x + CubeTriangles[3 * i] + (size + 1) * (y + CubeTriangles[3 * i + 1] + (size + 1) * (z + CubeTriangles[3 * i + 2]));
 
                             if (b)
                             {
@@ -96,7 +71,7 @@ namespace Assets.Scripts
 
             trianglesCache = new int[count];
 
-            Array.Copy(triangles, 0, trianglesCache, 0, count);
+            System.Array.Copy(triangles, 0, trianglesCache, 0, count);
 
             if (waitHandle != null)
             {
@@ -115,6 +90,12 @@ namespace Assets.Scripts
         {
             mesh.RecalculateNormals();
             collider.sharedMesh = mesh;
+        }
+
+        public void Destroy()
+        {
+            mesh.Clear();
+            Object.Destroy(gameObject);
         }
 
 

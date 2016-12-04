@@ -22,10 +22,9 @@ namespace Assets.Scripts
 
         private readonly Stopwatch stopwatch;
         private readonly ManualResetEvent threadsCreated;
-        private bool[,,] WorkingWorld;
-        private bool[,,] DirtyChunks;
-        private GameOfLifeRenderer[,,] gameOfLifeRenderers;
-        private ManualResetEvent[,,] waitHandles;
+        public Dictionary<Position, bool[,,]> World;
+        private Dictionary<Position, ChunkRenderer> gameOfLifeRenderers;
+        private List<ManualResetEvent> waitHandles;
         private ulong cubeUpdatePendingIndex;
         private ulong nextPendingIndex;
 
@@ -44,7 +43,7 @@ namespace Assets.Scripts
         public GameOfLife(int size, Material material)
         {
             World = new bool[size, size, size];
-            WorkingWorld = new bool[size, size, size];
+            World = new bool[size, size, size];
 
             threadsCreated = new ManualResetEvent(false);
             stopwatch = new Stopwatch();
@@ -62,7 +61,7 @@ namespace Assets.Scripts
         {
             WaitForThreads();
             World = world;
-            WorkingWorld = new bool[Size, Size, Size];
+            World = new bool[Size, Size, Size];
 
             InitRenderers();
         }
@@ -185,7 +184,7 @@ namespace Assets.Scripts
             }
             GOL = null;
             World = null;
-            WorkingWorld = null;
+            World = null;
         }
 
 
@@ -214,8 +213,8 @@ namespace Assets.Scripts
         {
             NextInProgress = false;
             var tmp = World;
-            World = WorkingWorld;
-            WorkingWorld = tmp;
+            World = World;
+            World = tmp;
             Log.LogComputationTime(stopwatch.ElapsedMilliseconds);
             stopwatch.Stop();
         }
@@ -249,14 +248,14 @@ namespace Assets.Scripts
                 }
             }
             DirtyChunks = new bool[Size / ChunkSize + 1, Size / ChunkSize + 1, Size / ChunkSize + 1];
-            gameOfLifeRenderers = new GameOfLifeRenderer[Size / ChunkSize + 1, Size / ChunkSize + 1, Size / ChunkSize + 1];
+            gameOfLifeRenderers = new ChunkRenderer[Size / ChunkSize + 1, Size / ChunkSize + 1, Size / ChunkSize + 1];
             for (int x = 0; x < Size / ChunkSize + 1; x++)
             {
                 for (int y = 0; y < Size / ChunkSize + 1; y++)
                 {
                     for (int z = 0; z < Size / ChunkSize + 1; z++)
                     {
-                        gameOfLifeRenderers[x, y, z] = new GameOfLifeRenderer(
+                        gameOfLifeRenderers[x, y, z] = new ChunkRenderer(
                             ChunkSize * x, Mathf.Min(Size, ChunkSize * (x + 1)),
                             ChunkSize * y, Mathf.Min(Size, ChunkSize * (y + 1)),
                             ChunkSize * z, Mathf.Min(Size, ChunkSize * (z + 1)),
@@ -354,7 +353,7 @@ namespace Assets.Scripts
                         waitHandles[i, j, k] = new ManualResetEvent(false);
                         if (Use3D)
                         {
-                            ThreadPool.QueueUserWorkItem(state => Thread3D(World, WorkingWorld, DirtyChunks, ChunkSize,
+                            ThreadPool.QueueUserWorkItem(state => Thread3D(World, World, DirtyChunks, ChunkSize,
                                                                          ThreadSize * i, Mathf.Min(Size, ThreadSize * (i + 1)),
                                                                          ThreadSize * j, Mathf.Min(Size, ThreadSize * (j + 1)),
                                                                          ThreadSize * k, Mathf.Min(Size, ThreadSize * (k + 1)),
@@ -362,7 +361,7 @@ namespace Assets.Scripts
                         }
                         else
                         {
-                            ThreadPool.QueueUserWorkItem(state => Thread2D(World, WorkingWorld, DirtyChunks, ChunkSize,
+                            ThreadPool.QueueUserWorkItem(state => Thread2D(World, World, DirtyChunks, ChunkSize,
                                                                          ThreadSize * i, Mathf.Min(Size, ThreadSize * (i + 1)),
                                                                          ThreadSize * j, Mathf.Min(Size, ThreadSize * (j + 1)),
                                                                          ThreadSize * k, Mathf.Min(Size, ThreadSize * (k + 1)),
