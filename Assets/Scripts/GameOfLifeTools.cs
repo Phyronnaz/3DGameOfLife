@@ -113,13 +113,27 @@ namespace Assets.Scripts
             GameOfLife.GOL.CancelPending();
             GameOfLife.GOL.WaitForThreads();
             GameOfLife.GOL.Update();
-            for (int x = 0; x < GameOfLife.GOL.Size; x++)
+            if (GameOfLife.Use3D)
             {
-                for (int y = 0; y < GameOfLife.GOL.Size; y++)
+                for (int x = 0; x < GameOfLife.GOL.Size; x++)
+                {
+                    for (int y = 0; y < GameOfLife.GOL.Size; y++)
+                    {
+                        for (int z = 0; z < GameOfLife.GOL.Size; z++)
+                        {
+                            GameOfLife.GOL.SetBlock(x, y, z, UnityEngine.Random.value < density);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Reset();
+                for (int x = 0; x < GameOfLife.GOL.Size; x++)
                 {
                     for (int z = 0; z < GameOfLife.GOL.Size; z++)
                     {
-                        GameOfLife.GOL.SetBlock(x, y, z, UnityEngine.Random.value < density);
+                        GameOfLife.GOL.SetBlock(x, GameOfLife.GOL.Size - 1, z, UnityEngine.Random.value < density);
                     }
                 }
             }
